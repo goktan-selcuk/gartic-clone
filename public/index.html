@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Çizgi Telefon</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎨</text></svg>">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="app">
+    <header class="topbar">
+      <div class="brand">🎨 Çizgi Telefon</div>
+      <div id="roomBadge" class="room-badge" hidden>
+        <span>Oda</span> <strong id="badgeCode"></strong>
+        <button id="badgeCopy" class="btn tiny" title="Davet linkini kopyala">Linki kopyala</button>
+      </div>
+    </header>
+
+    <main>
+      <!-- GİRİŞ -->
+      <section id="view-home" class="view card">
+        <h1>Çiz, yaz, gül 🙃</h1>
+        <p class="muted">Gartic Phone tarzı bir oyun: biri cümle yazar, diğeri çizer, bir sonraki çizimi tarif eder... Sonunda ortaya ne çıkıyor bakalım.</p>
+        <label class="field">
+          <span>Adın</span>
+          <input id="nameInput" type="text" maxlength="20" placeholder="örn. Gökhan" autocomplete="off">
+        </label>
+        <div class="row">
+          <button id="createBtn" class="btn primary big">Yeni Oda Kur</button>
+        </div>
+        <div class="divider"><span>veya</span></div>
+        <div class="row">
+          <input id="codeInput" type="text" maxlength="4" placeholder="ODA KODU" class="code-input" autocomplete="off">
+          <button id="joinBtn" class="btn big">Odaya Katıl</button>
+        </div>
+      </section>
+
+      <!-- LOBİ -->
+      <section id="view-lobby" class="view card" hidden>
+        <div class="lobby-head">
+          <div>
+            <div class="muted">Oda kodu</div>
+            <div id="lobbyCode" class="big-code"></div>
+          </div>
+          <div class="lobby-actions">
+            <button id="copyLinkBtn" class="btn">🔗 Davet linkini kopyala</button>
+          </div>
+        </div>
+        <p class="muted">Arkadaşların bu linkle ya da oda koduyla katılabilir. Herkes gelince ev sahibi oyunu başlatır.</p>
+
+        <h3>Oyuncular <span id="playerCount" class="muted"></span></h3>
+        <ul id="lobbyPlayers" class="player-list"></ul>
+
+        <div id="hostPanel" hidden>
+          <h3>Ayarlar</h3>
+          <div class="settings">
+            <label class="field inline">
+              <span>Yazma süresi (sn)</span>
+              <input id="writeTime" type="number" min="15" max="300" step="5">
+            </label>
+            <label class="field inline">
+              <span>Çizim süresi (sn)</span>
+              <input id="drawTime" type="number" min="20" max="600" step="10">
+            </label>
+          </div>
+          <button id="startBtn" class="btn primary big">Oyunu Başlat 🚀</button>
+        </div>
+        <p id="waitHost" class="muted" hidden>Ev sahibinin oyunu başlatması bekleniyor...</p>
+        <button id="leaveBtn" class="btn ghost small">Odadan ayrıl</button>
+      </section>
+
+      <!-- OYUN -->
+      <section id="view-play" class="view" hidden>
+        <div class="play-head card">
+          <div class="round-info">
+            <strong id="roundLabel"></strong>
+            <span id="taskLabel" class="muted"></span>
+          </div>
+          <div class="timer">
+            <div id="timerBar" class="timer-bar"><div id="timerFill"></div></div>
+            <span id="timerText">--</span>
+          </div>
+        </div>
+
+        <!-- Yazma ekranı -->
+        <div id="textPhase" class="card" hidden>
+          <div id="textPromptWrap" hidden>
+            <p class="muted">Bu çizimi tarif et:</p>
+            <img id="textPromptImg" class="prompt-img" alt="Tarif edilecek çizim">
+          </div>
+          <p id="textIntro" class="muted" hidden>Komik ya da tuhaf bir cümle yaz. Sıradaki kişi bunu çizmeye çalışacak!</p>
+          <textarea id="textInput" maxlength="200" rows="3" placeholder="Bir şeyler yaz..."></textarea>
+          <div class="row end">
+            <span id="textCount" class="muted small">0/200</span>
+            <button id="textSubmit" class="btn primary">Gönder ✔</button>
+          </div>
+        </div>
+
+        <!-- Çizim ekranı -->
+        <div id="drawPhase" class="card" hidden>
+          <div class="draw-prompt">Şunu çiz: <strong id="drawPromptText"></strong></div>
+          <div class="draw-area">
+            <div class="tools">
+              <div class="palette" id="palette"></div>
+              <div class="tool-row">
+                <button class="tool active" data-tool="brush" title="Fırça">🖌️</button>
+                <button class="tool" data-tool="eraser" title="Silgi">🧽</button>
+                <button class="tool" data-tool="fill" title="Doldur">🪣</button>
+                <button class="tool" id="undoBtn" title="Geri al">↩️</button>
+                <button class="tool" id="clearBtn" title="Temizle">🗑️</button>
+              </div>
+              <label class="size-row">
+                <span>Kalınlık</span>
+                <input id="sizeInput" type="range" min="2" max="40" value="6">
+                <span id="sizePreview" class="size-preview"></span>
+              </label>
+            </div>
+            <div class="canvas-wrap">
+              <canvas id="canvas" width="800" height="600"></canvas>
+            </div>
+          </div>
+          <div class="row end">
+            <button id="drawSubmit" class="btn primary">Bitti ✔</button>
+          </div>
+        </div>
+
+        <!-- Gönderdikten sonra -->
+        <div id="waitPhase" class="card" hidden>
+          <h2>Gönderildi ✅</h2>
+          <p class="muted">Diğerleri bekleniyor...</p>
+          <ul id="waitPlayers" class="player-list compact"></ul>
+        </div>
+
+        <div id="spectatorPhase" class="card" hidden>
+          <h2>İzleyicisin 👀</h2>
+          <p class="muted">Oyun başladıktan sonra katıldın; bir sonraki oyunda oynayabilirsin.</p>
+        </div>
+      </section>
+
+      <!-- SONUÇLAR -->
+      <section id="view-results" class="view" hidden>
+        <div class="card results-head">
+          <h2 id="albumTitle"></h2>
+          <div class="muted" id="albumIndex"></div>
+        </div>
+        <div id="albumEntries" class="album"></div>
+        <div class="card results-nav">
+          <div id="resultsHostNav">
+            <button id="prevBtn" class="btn">← Önceki</button>
+            <button id="nextBtn" class="btn primary big">Sonraki →</button>
+            <button id="restartBtn" class="btn primary big" hidden>Yeni Oyun 🔁</button>
+          </div>
+          <p id="resultsWait" class="muted" hidden>Ev sahibi albümleri açıyor...</p>
+        </div>
+      </section>
+    </main>
+
+    <div id="toast" class="toast" hidden></div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
