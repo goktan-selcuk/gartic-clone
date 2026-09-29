@@ -48,7 +48,7 @@
   }
 
   function inviteLink(code) {
-    return `${location.origin}${location.pathname}?oda=${code}`;
+    return `${location.origin}${location.pathname}?room=${code}`;
   }
 
   async function copyText(text) {
@@ -123,7 +123,7 @@
   // ---------- Giriş ----------
   const savedName = localStorage.getItem('name') || '';
   $('nameInput').value = savedName;
-  const urlCode = new URLSearchParams(location.search).get('oda');
+  const urlCode = new URLSearchParams(location.search).get('room') || new URLSearchParams(location.search).get('oda');
   if (urlCode) $('codeInput').value = urlCode.toUpperCase();
 
   function getName() {
@@ -139,7 +139,7 @@
     socket.emit('room:create', { name, playerId }, (res) => {
       if (res.error) return toast(res.error);
       sessionStorage.setItem('roomCode', res.code);
-      history.replaceState(null, '', `?oda=${res.code}`);
+      history.replaceState(null, '', `?room=${res.code}`);
     });
   };
 
@@ -150,7 +150,7 @@
     socket.emit('room:join', { code, name, playerId }, (res) => {
       if (res.error) return toast(res.error);
       sessionStorage.setItem('roomCode', res.code);
-      history.replaceState(null, '', `?oda=${res.code}`);
+      history.replaceState(null, '', `?room=${res.code}`);
     });
   }
   $('joinBtn').onclick = () => join($('codeInput').value.trim().toUpperCase());

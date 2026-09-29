@@ -11,12 +11,9 @@
   <div id="app">
     <header class="topbar">
       <div class="brand">🎨 Sketch Phone</div>
-      <div class="topbar-right">
-        <div id="roomBadge" class="room-badge" hidden>
-          <span>Room</span> <strong id="badgeCode"></strong>
-          <button id="badgeCopy" class="btn tiny" title="Copy invite link">Copy link</button>
-        </div>
-        <div class="sponsor">Powered by <strong>Whitewalkers</strong></div>
+      <div id="roomBadge" class="room-badge" hidden>
+        <span>Room</span> <strong id="badgeCode"></strong>
+        <button id="badgeCopy" class="btn tiny" title="Copy invite link">Copy link</button>
       </div>
     </header>
 
@@ -231,6 +228,7 @@
 
     <div id="toast" class="toast" hidden></div>
   </div>
+  <div class="sponsor">Powered by <strong>Whitewalkers</strong></div>
 
   <script src="/socket.io/socket.io.js"></script>
   <script src="app.js"></script>
