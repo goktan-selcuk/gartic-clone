@@ -9,7 +9,8 @@ const PORT = process.env.PORT || 3000;
 const GRACE_MS = 3000;            // süre bitince istemcilerin son gönderimi için tanınan pay
 const ROOM_IDLE_MS = 20 * 60 * 1000; // kimse kalmayınca odanın silinme süresi
 const MIN_PLAYERS = 2;
-const MAX_PLAYERS = 16;
+const MAX_PLAYERS = 45;
+const DEFAULT_MAX_ROUNDS = 10;
 
 const app = express();
 app.use(express.static(path.join(__dirname, 'public')));
@@ -21,11 +22,6 @@ const io = new Server(server, { maxHttpBufferSize: 5e6 });
 /** @type {Map<string, Room>} */
 const rooms = new Map();
 
-const COLORS = [
-  '#e6194b', '#3cb44b', '#4363d8', '#f58231', '#911eb4', '#42d4f4',
-  '#f032e6', '#bfef45', '#fabed4', '#469990', '#dcbeff', '#9a6324',
-  '#800000', '#aaffc3', '#808000', '#000075',
-];
 
 function genCode() {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -53,7 +49,8 @@ function createRoom(hostId) {
     hostId,
     players: new Map(), // playerId -> { id, name, color, socketId, connected }
     phase: 'lobby',     // lobby | playing | results
-    settings: { writeTime: 60, drawTime: 90 },
+    settings: { writeTime: 60, drawTime: 90, maxRounds: DEFAULT_MAX_ROUNDS },
+    colorSeq: 0,
     round: 0,
     totalRounds: 0,
     order: [],          // oyuna başlayan oyuncuların id sırası
@@ -73,8 +70,11 @@ function connectedPlayers(room) {
 }
 
 function pickColor(room) {
-  const used = new Set([...room.players.values()].map((p) => p.color));
-  return COLORS.find((c) => !used.has(c)) || COLORS[room.players.size % COLORS.length];
+  // Altın açı ile dağıtılmış tonlar: 45 oyuncuda bile ayırt edilebilir renkler
+  const i = room.colorSeq++;
+  const hue = Math.round((i * 137.508) % 360);
+  const light = [45, 35, 55][i % 3];
+  return `hsl(${hue} 70% ${light}%)`;
 }
 
 function roundType(round) {
@@ -102,8 +102,11 @@ function playerList(room) {
   }));
 }
 
-function serializeChains(room) {
-  return room.chains.map((c) => ({
+function serializeAlbum(room, index) {
+  const c = room.chains[index];
+  if (!c) return null;
+  return {
+    index,
     owner: nameOf(room, c.ownerId),
     ownerColor: room.players.get(c.ownerId)?.color,
     entries: c.entries.map((e) => ({
@@ -112,10 +115,15 @@ function serializeChains(room) {
       authorColor: room.players.get(e.authorId)?.color,
       content: e.content,
     })),
-  }));
+  };
 }
 
-function stateFor(room, playerId, { withChains = false } = {}) {
+function sendAlbum(room, target) {
+  const album = serializeAlbum(room, room.reveal.chain);
+  if (album) target.emit('results:album', album);
+}
+
+function stateFor(room, playerId, { withTask = false } = {}) {
   const base = {
     code: room.code,
     hostId: room.hostId,
@@ -137,22 +145,25 @@ function stateFor(room, playerId, { withChains = false } = {}) {
       base.task = { spectator: true };
     } else {
       const chain = room.chains[ci];
-      const prev = chain.entries[chain.entries.length - 1] || null;
       base.task = {
         spectator: false,
         type: roundType(room.round),
         chainOwner: nameOf(room, chain.ownerId),
-        prev: prev
-          ? { type: prev.type, author: nameOf(room, prev.authorId), content: prev.content }
-          : null,
         submitted: room.submissions.has(playerId),
       };
+      // Önceki adımın içeriği (çizim verisi büyük olabilir) yalnızca tur başında / katılımda gönderilir
+      if (withTask) {
+        const prev = chain.entries[chain.entries.length - 1] || null;
+        base.task.prev = prev
+          ? { type: prev.type, author: nameOf(room, prev.authorId), content: prev.content }
+          : null;
+      }
     }
   }
 
   if (room.phase === 'results') {
     base.reveal = room.reveal;
-    if (withChains) base.chains = serializeChains(room);
+    base.albumCount = room.chains.length;
   }
 
   return base;
@@ -167,7 +178,7 @@ function broadcast(room, opts) {
 function startGame(room) {
   room.order = connectedPlayers(room).map((p) => p.id);
   const n = room.order.length;
-  room.totalRounds = n;
+  room.totalRounds = Math.min(n, room.settings.maxRounds);
   room.chains = room.order.map((id) => ({ ownerId: id, entries: [] }));
   room.round = 0;
   room.phase = 'playing';
@@ -181,7 +192,7 @@ function beginRound(room) {
   room.roundEndsAt = Date.now() + secs * 1000;
   clearTimeout(room.timer);
   room.timer = setTimeout(() => finishRound(room), secs * 1000 + GRACE_MS);
-  broadcast(room);
+  broadcast(room, { withTask: true });
 }
 
 function finishRound(room) {
@@ -201,7 +212,8 @@ function finishRound(room) {
     room.roundEndsAt = 0;
     room.submissions = new Map();
     room.reveal = { chain: 0, step: 1 };
-    broadcast(room, { withChains: true });
+    broadcast(room);
+    sendAlbum(room, io.to(room.code));
   } else {
     beginRound(room);
   }
@@ -277,7 +289,8 @@ io.on('connection', (socket) => {
     touchEmpty(room);
     cb({ ok: true, code: room.code });
     // Katılan kişiye tam durum (sonuç aşamasındaysa zincirlerle birlikte), diğerlerine güncelleme
-    io.to(socket.id).emit('room:state', stateFor(room, playerId, { withChains: true }));
+    io.to(socket.id).emit('room:state', stateFor(room, playerId, { withTask: true }));
+    if (room.phase === 'results') sendAlbum(room, socket);
     for (const p of room.players.values()) {
       if (p.socketId && p.id !== playerId) io.to(p.socketId).emit('room:state', stateFor(room, p.id));
     }
@@ -288,6 +301,7 @@ io.on('connection', (socket) => {
     if (!isHost(room) || room.phase !== 'lobby') return;
     room.settings.writeTime = clampInt(settings.writeTime, 15, 300, room.settings.writeTime);
     room.settings.drawTime = clampInt(settings.drawTime, 20, 600, room.settings.drawTime);
+    room.settings.maxRounds = clampInt(settings.maxRounds, 2, MAX_PLAYERS, room.settings.maxRounds);
     broadcast(room);
   });
 
@@ -319,6 +333,7 @@ io.on('connection', (socket) => {
     const room = getRoom();
     if (!isHost(room) || room.phase !== 'results') return;
     const r = room.reveal;
+    const before = r.chain;
     const len = room.chains[r.chain]?.entries.length || 0;
     if (dir === 'next') {
       if (r.step < len) r.step++;
@@ -327,6 +342,7 @@ io.on('connection', (socket) => {
       if (r.step > 1) r.step--;
       else if (r.chain > 0) { r.chain--; r.step = room.chains[r.chain].entries.length; }
     }
+    if (r.chain !== before) sendAlbum(room, io.to(room.code));
     io.to(room.code).emit('results:reveal', r);
   });
 

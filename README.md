@@ -5,7 +5,7 @@ bir sonraki çizimi tarif eder... Turlar bitince her "albüm" adım adım açıl
 gittiği görülür.
 
 - Kurulum gerektirmez: linki paylaş, herkes adını yazıp katılsın.
-- 2–16 oyuncu. Tur sayısı = oyuncu sayısı.
+- 2–45 oyuncu. Tur sayısı = oyuncu sayısı (ev sahibi üst sınır koyabilir, varsayılan 10).
 - Yazma / çizim süreleri ev sahibi tarafından ayarlanır.
 - Fırça, silgi, doldurma, geri al, 16 renk. Mobilde de çalışır.
 - Sayfa yenilense bile oyuncu aynı odaya geri döner.

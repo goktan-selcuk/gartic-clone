@@ -15,10 +15,11 @@
   })();
 
   let state = null;           // sunucudan gelen son durum
-  let chains = null;          // sonuç aşamasındaki albümler
+  let albums = {};            // sonuç aşamasında gelen albümler (index -> album)
   let serverOffset = 0;       // sunucu saati - istemci saati
   let timerInterval = null;
   let autoSubmitted = false;
+  let alarmed = false;
   let lastRoundKey = null;
 
   let toastTimer = null;
@@ -137,9 +138,13 @@
     const prevPhase = state?.phase;
     state = s;
     serverOffset = s.serverNow - Date.now();
-    if (s.chains) chains = s.chains;
-    if (s.phase !== 'results') chains = s.phase === 'lobby' ? null : chains;
+    if (s.phase !== 'results') albums = {};
     render(prevPhase);
+  });
+
+  socket.on('results:album', (album) => {
+    albums[album.index] = album;
+    if (state && state.phase === 'results') renderResults();
   });
 
   socket.on('results:reveal', (reveal) => {
@@ -192,6 +197,8 @@
     if (isHost) {
       if (document.activeElement !== $('writeTime')) $('writeTime').value = s.settings.writeTime;
       if (document.activeElement !== $('drawTime')) $('drawTime').value = s.settings.drawTime;
+      if (document.activeElement !== $('maxRounds')) $('maxRounds').value = s.settings.maxRounds;
+      $('roundsHint').textContent = `This game: ${Math.min(s.players.length, s.settings.maxRounds)} rounds`;
       $('startBtn').disabled = s.players.length < s.minPlayers;
       $('startBtn').textContent = s.players.length < s.minPlayers
         ? `At least ${s.minPlayers} players needed`
@@ -200,10 +207,11 @@
   }
 
   function pushSettings() {
-    socket.emit('room:settings', { writeTime: $('writeTime').value, drawTime: $('drawTime').value });
+    socket.emit('room:settings', { writeTime: $('writeTime').value, drawTime: $('drawTime').value, maxRounds: $('maxRounds').value });
   }
   $('writeTime').addEventListener('change', pushSettings);
   $('drawTime').addEventListener('change', pushSettings);
+  $('maxRounds').addEventListener('change', pushSettings);
   $('startBtn').onclick = () => socket.emit('game:start');
 
   // ---------- Oyun ----------
@@ -243,18 +251,24 @@
       return;
     }
 
-    if (newRound) autoSubmitted = false;
+    if (newRound) { autoSubmitted = false; alarmed = false; }
 
+    // t.prev yalnızca tur başında / yeniden katılımda gelir; ara güncellemelerde mevcut istem korunur
+    const hasPrevInfo = t.prev !== undefined;
     if (t.type === 'text') {
       $('textPhase').hidden = false;
-      const hasImg = t.prev && t.prev.type === 'draw';
-      $('textPromptWrap').hidden = !hasImg;
-      $('textIntro').hidden = hasImg;
-      if (hasImg) $('textPromptImg').src = t.prev.content || blankImage();
+      if (hasPrevInfo) {
+        const hasImg = t.prev && t.prev.type === 'draw';
+        $('textPromptWrap').hidden = !hasImg;
+        $('textIntro').hidden = hasImg;
+        if (hasImg) $('textPromptImg').src = t.prev.content || blankImage();
+      }
       if (newRound) { $('textInput').value = ''; updateCount(); setTimeout(() => $('textInput').focus(), 50); }
     } else {
       $('drawPhase').hidden = false;
-      $('drawPromptText').textContent = (t.prev && t.prev.content) ? t.prev.content : '(left blank... draw whatever you like!)';
+      if (hasPrevInfo) {
+        $('drawPromptText').textContent = (t.prev && t.prev.content) ? t.prev.content : '(left blank... draw whatever you like!)';
+      }
       if (newRound) { resetCanvas(); }
       fitCanvas();
     }
@@ -314,12 +328,38 @@
       $('timerFill').style.width = pct + '%';
       $('timerFill').classList.toggle('warn', remain < 10000);
       $('timerText').textContent = Math.ceil(remain / 1000) + 's';
+      const urgent = remain > 0 && remain <= 5000;
+      $('timerText').classList.toggle('urgent', urgent);
+      if (urgent && !alarmed && !state.task.spectator && !state.task.submitted) { alarmed = true; playAlarm(); }
       if (remain <= 0) autoSubmit();
     };
     tick();
     timerInterval = setInterval(tick, 500);
   }
-  function stopTimer() { clearInterval(timerInterval); timerInterval = null; }
+  function stopTimer() { clearInterval(timerInterval); timerInterval = null; $('timerText').classList.remove('urgent'); }
+
+  // Son 5 saniyede ufak bir bip (Web Audio; tarayıcı etkileşim sonrası ses çalmaya izin verir)
+  let audioCtx = null;
+  function playAlarm() {
+    try {
+      audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      const t0 = audioCtx.currentTime;
+      for (let i = 0; i < 3; i++) {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.value = i === 2 ? 1100 : 880;
+        gain.gain.setValueAtTime(0.0001, t0 + i * 0.22);
+        gain.gain.exponentialRampToValueAtTime(0.25, t0 + i * 0.22 + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.0001, t0 + i * 0.22 + 0.16);
+        osc.connect(gain).connect(audioCtx.destination);
+        osc.start(t0 + i * 0.22);
+        osc.stop(t0 + i * 0.22 + 0.18);
+      }
+    } catch { /* ses desteklenmiyorsa sessizce geç */ }
+    if (navigator.vibrate) navigator.vibrate([120, 80, 120]);
+  }
 
   // ---------- Çizim ----------
   const canvas = $('canvas');
@@ -479,13 +519,14 @@
   // ---------- Sonuçlar ----------
   function renderResults() {
     const s = state;
-    if (!chains) return;
     const isHost = s.hostId === s.you;
     const r = s.reveal;
-    const chain = chains[r.chain];
-    if (!chain) return;
+    const chain = albums[r.chain];
+    $('resultsHostNav').hidden = !isHost;
+    $('resultsWait').hidden = isHost;
+    if (!chain) { $('albumTitle').textContent = 'Loading album...'; return; }
     $('albumTitle').textContent = `${chain.owner}'s album`;
-    $('albumIndex').textContent = `Album ${r.chain + 1} / ${chains.length}`;
+    $('albumIndex').textContent = `Album ${r.chain + 1} / ${s.albumCount}`;
 
     const wrap = $('albumEntries');
     const key = `${r.chain}`;
@@ -521,9 +562,7 @@
       card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
 
-    const atEnd = r.chain === chains.length - 1 && r.step >= chain.entries.length;
-    $('resultsHostNav').hidden = !isHost;
-    $('resultsWait').hidden = isHost;
+    const atEnd = r.chain === s.albumCount - 1 && r.step >= chain.entries.length;
     $('prevBtn').disabled = r.chain === 0 && r.step <= 1;
     $('nextBtn').hidden = atEnd;
     $('restartBtn').hidden = !atEnd;
