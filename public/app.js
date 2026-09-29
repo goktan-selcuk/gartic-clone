@@ -74,14 +74,13 @@
     'You know nothing about drawing, Jon Snow.',
     'The night is dark and full of doodles.',
   ];
-  const BUBBLES = [
-    'Draw... or join the army of the dead.',
-    'I once drew a horse. It became a dragon.',
-    'Bring me the pencil of a thousand sketches.',
-    'Beyond the Wall, we only draw stick figures.',
-    'My eyes glow. My art does not.',
-    'Cold hands, warm doodles.',
-  ];
+  // Her maskotun kendi replikleri var
+  const MASCOTS = {
+    chibi: ['Hi!! I drew a snowman. It was me.', 'My eyes glow. My art does not.', 'Cold hands, warm doodles.', 'Can I be in your album? Please?'],
+    hood: ['The pencil remembers.', 'Draw... or join the army of the dead.', 'I see your drawing. I have no comment.', 'The night is dark and full of doodles.'],
+    pixel: ['PRESS START TO DRAW', 'INSERT COIN. DRAW BADLY.', 'ACHIEVEMENT: STICK FIGURE', 'GAME OVER? NO. DRAW AGAIN.'],
+    horde: ['We are many. We all draw badly.', 'Beyond the Wall, we only draw stick figures.', 'One of us dropped the pencil. Again.', 'Bring me the pencil of a thousand sketches.'],
+  };
   (function decorateHome() {
     const snow = document.querySelector('.snow');
     if (snow) {
@@ -97,7 +96,13 @@
         snow.appendChild(f);
       }
     }
+    // Rastgele bir maskot seç
+    const keys = Object.keys(MASCOTS);
+    const pick = keys[Math.floor(Math.random() * keys.length)];
+    for (const k of keys) $('mascot-' + k).toggleAttribute('hidden', k !== pick);
+    const BUBBLES = MASCOTS[pick];
     let ti = 0, bi = 0;
+    $('walkerBubble').textContent = BUBBLES[0];
     setInterval(() => {
       if ($('view-home').hidden) return;
       const t = $('tagline');
@@ -113,11 +118,6 @@
       b.textContent = BUBBLES[bi];
       b.style.animation = '';
     }, 6000);
-    // İsteğe bağlı: public/whitewalker.gif varsa SVG yerine onu göster
-    const gif = $('walkerGif');
-    const probe = new Image();
-    probe.onload = () => { gif.src = probe.src; gif.hidden = false; $('walkerSvg').hidden = true; };
-    probe.src = 'whitewalker.gif';
   })();
 
   // ---------- Giriş ----------

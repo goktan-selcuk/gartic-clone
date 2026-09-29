@@ -40,67 +40,88 @@
 
         <div class="walker-scene" aria-hidden="true">
           <div class="bubble" id="walkerBubble">Draw... or join the army of the dead.</div>
-          <img id="walkerGif" class="walker-gif" alt="" hidden>
-          <svg id="walkerSvg" class="walker" viewBox="0 0 220 260" xmlns="http://www.w3.org/2000/svg">
+          <!-- Maskotlar: her açılışta rastgele biri gösterilir -->
+          <svg id="mascot-chibi" class="mascot" viewBox="0 0 220 260" xmlns="http://www.w3.org/2000/svg" hidden>
             <defs>
-              <radialGradient id="glow" cx="50%" cy="50%" r="50%">
-                <stop offset="0%" stop-color="#9ff3ff" stop-opacity="1"/>
-                <stop offset="100%" stop-color="#1ec8ff" stop-opacity="0"/>
-              </radialGradient>
-              <linearGradient id="skin" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stop-color="#e8f4fb"/>
-                <stop offset="100%" stop-color="#b7cfe0"/>
-              </linearGradient>
-              <linearGradient id="cloak" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stop-color="#4a5566"/>
-                <stop offset="100%" stop-color="#1e2530"/>
-              </linearGradient>
+              <radialGradient id="gc"><stop offset="0" stop-color="#bff6ff"/><stop offset="1" stop-color="#1ec8ff" stop-opacity="0"/></radialGradient>
+              <linearGradient id="sc" x2="0" y2="1"><stop offset="0" stop-color="#f2f9fd"/><stop offset="1" stop-color="#c3d9e8"/></linearGradient>
             </defs>
-            <g class="walker-body">
-              <!-- pelerin -->
-              <path d="M70 120 L150 120 L175 250 L45 250 Z" fill="url(#cloak)"/>
-              <path d="M45 250 L60 232 L75 250 L90 234 L105 250 L120 236 L135 250 L150 232 L165 250 L175 250 L45 250 Z" fill="#141a22"/>
-              <!-- omuz buzu -->
-              <path d="M66 122 L80 100 L94 122 Z" fill="#cfe8f5"/>
-              <path d="M126 122 L140 100 L154 122 Z" fill="#cfe8f5"/>
-              <!-- kollar -->
-              <path d="M78 130 L40 190" stroke="url(#skin)" stroke-width="16" stroke-linecap="round"/>
-              <path d="M142 130 L170 175" stroke="url(#skin)" stroke-width="16" stroke-linecap="round"/>
-              <!-- boyun -->
-              <rect x="100" y="98" width="20" height="26" fill="url(#skin)"/>
-              <!-- kafa -->
-              <path d="M75 60 C75 20 145 20 145 60 C145 92 132 110 110 110 C88 110 75 92 75 60 Z" fill="url(#skin)"/>
-              <!-- çatlaklar -->
-              <path d="M86 40 L92 56 L86 68" stroke="#8fb2c9" stroke-width="2" fill="none"/>
-              <path d="M132 34 L128 50" stroke="#8fb2c9" stroke-width="2" fill="none"/>
-              <!-- elmacık -->
-              <path d="M82 76 Q95 84 100 78" stroke="#8fb2c9" stroke-width="2" fill="none"/>
-              <path d="M138 76 Q125 84 120 78" stroke="#8fb2c9" stroke-width="2" fill="none"/>
-              <!-- gözler -->
-              <g class="eyes">
-                <circle cx="96" cy="66" r="14" fill="url(#glow)"/>
-                <circle cx="124" cy="66" r="14" fill="url(#glow)"/>
-                <ellipse cx="96" cy="66" rx="6" ry="5" fill="#2ee6ff"/>
-                <ellipse cx="124" cy="66" rx="6" ry="5" fill="#2ee6ff"/>
-                <ellipse cx="96" cy="66" rx="2" ry="2.5" fill="#062a3a"/>
-                <ellipse cx="124" cy="66" rx="2" ry="2.5" fill="#062a3a"/>
+            <g class="m-bob">
+              <path d="M80 175 L140 175 L150 250 L70 250 Z" fill="#2b3547"/>
+              <path d="M70 250 L80 240 L90 250 L100 240 L110 250 L120 240 L130 250 L140 240 L150 250 Z" fill="#161c27"/>
+              <path d="M84 185 L62 215" stroke="url(#sc)" stroke-width="14" stroke-linecap="round"/>
+              <g class="m-wave"><path d="M136 185 L166 160" stroke="url(#sc)" stroke-width="14" stroke-linecap="round"/><circle cx="168" cy="158" r="10" fill="url(#sc)"/>
+                <g transform="rotate(-30 168 158)"><rect x="163" y="120" width="10" height="46" rx="3" fill="#f5c542"/><rect x="163" y="120" width="10" height="9" rx="3" fill="#f06b8a"/><path d="M163 166 L173 166 L168 178 Z" fill="#f2d9b0"/><path d="M166.5 174 L169.5 174 L168 178 Z" fill="#333"/></g></g>
+              <circle cx="62" cy="217" r="10" fill="url(#sc)"/>
+              <circle cx="110" cy="112" r="66" fill="url(#sc)"/>
+              <path d="M62 90 L72 64 L84 86 M92 78 L102 50 L112 78 M118 78 L128 50 L138 78 M148 86 L158 64 L166 90" stroke="#eaf7ff" stroke-width="5" fill="none" stroke-linecap="round"/>
+              <path d="M70 100 L76 112 L70 122 M150 100 L144 112 L150 122" stroke="#9dbbd0" stroke-width="2" fill="none"/>
+              <circle cx="78" cy="132" r="9" fill="#ffb3c7" opacity=".7"/><circle cx="142" cy="132" r="9" fill="#ffb3c7" opacity=".7"/>
+              <g class="m-glow"><circle cx="88" cy="112" r="22" fill="url(#gc)"/><circle cx="132" cy="112" r="22" fill="url(#gc)"/></g>
+              <g class="m-blink"><circle cx="88" cy="112" r="12" fill="#2ee6ff"/><circle cx="132" cy="112" r="12" fill="#2ee6ff"/><circle cx="88" cy="112" r="6" fill="#062a3a"/><circle cx="132" cy="112" r="6" fill="#062a3a"/><circle cx="92" cy="107" r="3" fill="#fff"/><circle cx="136" cy="107" r="3" fill="#fff"/></g>
+              <path d="M98 146 Q110 156 122 146" stroke="#5b7a94" stroke-width="3" fill="none" stroke-linecap="round"/>
+            </g>
+          </svg>
+
+          <svg id="mascot-hood" class="mascot" viewBox="0 0 260 260" xmlns="http://www.w3.org/2000/svg" hidden>
+            <defs>
+              <radialGradient id="gd"><stop offset="0" stop-color="#bff6ff"/><stop offset="1" stop-color="#1ec8ff" stop-opacity="0"/></radialGradient>
+              <radialGradient id="bgd" cx="50%" cy="40%"><stop offset="0" stop-color="#1b2a44"/><stop offset="1" stop-color="#0b1220"/></radialGradient>
+            </defs>
+            <circle cx="130" cy="130" r="118" fill="url(#bgd)" stroke="#2f4a6e" stroke-width="3"/>
+            <circle cx="130" cy="130" r="108" fill="none" stroke="#5fe3ff" stroke-width="1" opacity=".35" stroke-dasharray="4 8"/>
+            <g class="m-bob">
+              <path d="M130 30 C80 30 60 90 62 150 C64 200 70 230 70 230 L190 230 C190 230 196 200 198 150 C200 90 180 30 130 30 Z" fill="#0a0e16"/>
+              <path d="M130 44 C96 44 84 92 86 140 L174 140 C176 92 164 44 130 44 Z" fill="#141c2b"/>
+              <path d="M130 62 C108 62 98 96 100 132 L160 132 C162 96 152 62 130 62 Z" fill="#05080d"/>
+              <g class="m-glow"><circle cx="116" cy="104" r="16" fill="url(#gd)"/><circle cx="144" cy="104" r="16" fill="url(#gd)"/><path d="M106 102 L124 99 L124 107 L107 108 Z" fill="#8ff4ff"/><path d="M154 102 L136 99 L136 107 L153 108 Z" fill="#8ff4ff"/></g>
+            </g>
+          </svg>
+
+          <svg id="mascot-pixel" class="mascot" viewBox="0 0 220 260" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges" hidden>
+            <g class="m-bob" transform="translate(50 20)">
+              <g fill="#dbe9f3">
+                <rect x="40" y="0" width="10" height="20"/><rect x="60" y="0" width="10" height="10"/><rect x="80" y="0" width="10" height="20"/>
+                <rect x="30" y="20" width="70" height="10"/><rect x="20" y="30" width="90" height="50"/><rect x="30" y="80" width="70" height="10"/><rect x="40" y="90" width="50" height="10"/>
+                <rect x="50" y="100" width="30" height="10"/>
+                <rect x="0" y="120" width="20" height="50"/><rect x="110" y="120" width="20" height="40"/>
               </g>
-              <!-- ağız -->
-              <path d="M98 94 Q110 100 122 94" stroke="#6f8ea6" stroke-width="2" fill="none"/>
-              <!-- tepe buzları (taç) -->
-              <path d="M84 40 L90 18 L98 38 M104 34 L110 8 L116 34 M122 38 L130 18 L136 40" stroke="#dff3ff" stroke-width="4" fill="none" stroke-linecap="round"/>
+              <g fill="#2b3547"><rect x="20" y="110" width="90" height="80"/><rect x="10" y="190" width="110" height="20"/><rect x="0" y="210" width="130" height="20"/></g>
+              <g fill="#141a22"><rect x="20" y="220" width="10" height="10"/><rect x="40" y="220" width="10" height="10"/><rect x="60" y="220" width="10" height="10"/><rect x="80" y="220" width="10" height="10"/><rect x="100" y="220" width="10" height="10"/></g>
+              <g fill="#93b0c7"><rect x="30" y="60" width="10" height="10"/><rect x="90" y="60" width="10" height="10"/><rect x="50" y="90" width="30" height="10" opacity=".5"/></g>
+              <g class="m-flicker" fill="#2ee6ff"><rect x="40" y="40" width="20" height="10"/><rect x="70" y="40" width="20" height="10"/></g>
+              <g fill="#8ff4ff" opacity=".5"><rect x="30" y="40" width="10" height="10"/><rect x="100" y="40" width="10" height="10"/><rect x="40" y="50" width="20" height="10"/><rect x="70" y="50" width="20" height="10"/></g>
+              <g><rect x="130" y="40" width="10" height="120" fill="#f5c542"/><rect x="130" y="40" width="10" height="10" fill="#f06b8a"/><rect x="130" y="160" width="10" height="10" fill="#f2d9b0"/><rect x="130" y="170" width="10" height="10" fill="#333"/><rect x="120" y="150" width="30" height="10" fill="#dbe9f3"/></g>
             </g>
-            <!-- dev kalem (mızrak yerine) -->
-            <g class="pencil">
-              <rect x="176" y="40" width="14" height="150" rx="3" fill="#f5c542" transform="rotate(12 183 115)"/>
-              <rect x="176" y="40" width="14" height="14" rx="3" fill="#f06b8a" transform="rotate(12 183 115)"/>
-              <path d="M176 190 L190 190 L183 214 Z" fill="#f2d9b0" transform="rotate(12 183 115)"/>
-              <path d="M180.5 205 L185.5 205 L183 214 Z" fill="#333" transform="rotate(12 183 115)"/>
-              <path d="M176 60 L190 60" stroke="#c99a2a" stroke-width="2" transform="rotate(12 183 115)"/>
+          </svg>
+
+          <svg id="mascot-horde" class="mascot wide" viewBox="0 0 300 200" xmlns="http://www.w3.org/2000/svg" hidden>
+            <defs>
+              <radialGradient id="gf"><stop offset="0" stop-color="#bff6ff"/><stop offset="1" stop-color="#1ec8ff" stop-opacity="0"/></radialGradient>
+              <linearGradient id="sf" x2="0" y2="1"><stop offset="0" stop-color="#cfdfe9"/><stop offset="1" stop-color="#8ea6b8"/></linearGradient>
+            </defs>
+            <g class="m-pop1">
+              <path d="M30 200 L30 120 C30 90 90 90 90 120 L90 200 Z" fill="url(#sf)"/>
+              <path d="M40 130 L50 150 L42 165 M80 128 L72 145" stroke="#5b7a94" stroke-width="2" fill="none"/>
+              <g class="m-glow"><circle cx="50" cy="130" r="11" fill="url(#gf)"/><circle cx="70" cy="130" r="11" fill="url(#gf)"/><circle cx="50" cy="130" r="5" fill="#2ee6ff"/><circle cx="70" cy="130" r="5" fill="#2ee6ff"/></g>
+              <path d="M48 160 L58 156 L64 162 L72 158" stroke="#5b7a94" stroke-width="2" fill="none"/>
+              <g transform="rotate(-20 95 150)"><rect x="90" y="110" width="9" height="60" rx="2" fill="#f5c542"/><rect x="90" y="110" width="9" height="8" rx="2" fill="#f06b8a"/><path d="M90 170 L99 170 L94.5 184 Z" fill="#f2d9b0"/></g>
             </g>
-            <!-- el -->
-            <circle cx="172" cy="178" r="10" fill="url(#skin)"/>
-            <circle cx="40" cy="190" r="10" fill="url(#skin)"/>
+            <g class="m-pop2">
+              <path d="M110 200 L110 100 C110 66 180 66 180 100 L180 200 Z" fill="url(#sf)"/>
+              <path d="M120 96 L128 82 L136 98 M150 92 L158 76 L166 94" stroke="#eaf7ff" stroke-width="3" fill="none" stroke-linecap="round"/>
+              <path d="M122 120 L130 138 M168 120 L160 138" stroke="#5b7a94" stroke-width="2" fill="none"/>
+              <g class="m-glow"><circle cx="133" cy="118" r="13" fill="url(#gf)"/><circle cx="157" cy="118" r="13" fill="url(#gf)"/><circle cx="133" cy="118" r="6" fill="#2ee6ff"/><circle cx="157" cy="118" r="6" fill="#2ee6ff"/></g>
+              <path d="M132 150 Q145 142 158 150" stroke="#5b7a94" stroke-width="2" fill="none"/>
+              <g transform="rotate(15 190 150)"><rect x="185" y="100" width="9" height="70" rx="2" fill="#f5c542"/><rect x="185" y="100" width="9" height="8" rx="2" fill="#f06b8a"/><path d="M185 170 L194 170 L189.5 184 Z" fill="#f2d9b0"/></g>
+            </g>
+            <g class="m-pop3">
+              <path d="M205 200 L205 125 C205 96 265 96 265 125 L265 200 Z" fill="url(#sf)"/>
+              <path d="M215 135 L222 150 L214 162" stroke="#5b7a94" stroke-width="2" fill="none"/>
+              <g class="m-glow"><circle cx="226" cy="136" r="11" fill="url(#gf)"/><circle cx="246" cy="136" r="11" fill="url(#gf)"/><circle cx="226" cy="136" r="5" fill="#2ee6ff"/><circle cx="246" cy="136" r="5" fill="#2ee6ff"/></g>
+              <ellipse cx="236" cy="164" rx="6" ry="8" fill="#3a4c5e"/>
+              <g transform="rotate(70 262 170)"><rect x="258" y="130" width="8" height="50" rx="2" fill="#f5c542"/><rect x="258" y="130" width="8" height="7" rx="2" fill="#f06b8a"/><path d="M258 180 L266 180 L262 192 Z" fill="#f2d9b0"/></g>
+            </g>
           </svg>
           <div class="ground"></div>
         </div>
