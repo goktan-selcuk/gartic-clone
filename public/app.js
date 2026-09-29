@@ -65,18 +65,8 @@
   }
 
   // ---------- Giriş ekranı süsleri ----------
-  const TAGLINES = [
-    'Brace yourselves. Terrible drawings are coming.',
-    'Winter is coming. So is your coworker\'s stick figure.',
-    'What is dead may never draw.',
-    'A game has no artists.',
-    'Hold the door... hold the pencil.',
-    'You know nothing about drawing, Jon Snow.',
-    'The night is dark and full of doodles.',
-  ];
   // Her maskotun kendi replikleri var
   const MASCOTS = {
-    chibi: ['Hi!! I drew a snowman. It was me.', 'My eyes glow. My art does not.', 'Cold hands, warm doodles.', 'Can I be in your album? Please?'],
     hood: ['The pencil remembers.', 'Draw... or join the army of the dead.', 'I see your drawing. I have no comment.', 'The night is dark and full of doodles.'],
     pixel: ['PRESS START TO DRAW', 'INSERT COIN. DRAW BADLY.', 'ACHIEVEMENT: STICK FIGURE', 'GAME OVER? NO. DRAW AGAIN.'],
     horde: ['We are many. We all draw badly.', 'Beyond the Wall, we only draw stick figures.', 'One of us dropped the pencil. Again.', 'Bring me the pencil of a thousand sketches.'],
@@ -101,7 +91,7 @@
     const pick = keys[Math.floor(Math.random() * keys.length)];
     for (const k of keys) $('mascot-' + k).toggleAttribute('hidden', k !== pick);
     const BUBBLES = MASCOTS[pick];
-    let ti = 0, bi = 0;
+    let bi = 0;
     $('walkerBubble').textContent = BUBBLES[0];
 
     // Günün ruh hali
@@ -126,12 +116,6 @@
       playIceCrack();
       badge.classList.remove('cracked'); void badge.offsetWidth; badge.classList.add('cracked');
     };
-    setInterval(() => {
-      if ($('view-home').hidden) return;
-      const t = $('tagline');
-      t.classList.add('fade');
-      setTimeout(() => { ti = (ti + 1) % TAGLINES.length; t.textContent = TAGLINES[ti]; t.classList.remove('fade'); }, 400);
-    }, 4500);
     setInterval(() => {
       if ($('view-home').hidden) return;
       const b = $('walkerBubble');

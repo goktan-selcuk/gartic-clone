@@ -23,7 +23,6 @@
         <div class="snow" aria-hidden="true"></div>
         <div class="card home-card">
           <h1 class="home-title">Write. Draw. <span class="icy">Freeze.</span> 🥶</h1>
-          <p class="tagline" id="tagline">Brace yourselves. Terrible drawings are coming.</p>
           <div class="home-meta">
             <button id="statsLine" class="stat-line" type="button" title="Since the last server restart">
               Drawings ruined so far: <strong id="statDrawings">0</strong> · Sentences misunderstood: <strong id="statSentences">0</strong>
@@ -47,28 +46,6 @@
         <div class="walker-scene" aria-hidden="true">
           <div class="bubble" id="walkerBubble">Draw... or join the army of the dead.</div>
           <!-- Maskotlar: her açılışta rastgele biri gösterilir -->
-          <svg id="mascot-chibi" class="mascot" viewBox="0 0 220 260" xmlns="http://www.w3.org/2000/svg" hidden>
-            <defs>
-              <radialGradient id="gc"><stop offset="0" stop-color="#bff6ff"/><stop offset="1" stop-color="#1ec8ff" stop-opacity="0"/></radialGradient>
-              <linearGradient id="sc" x2="0" y2="1"><stop offset="0" stop-color="#f2f9fd"/><stop offset="1" stop-color="#c3d9e8"/></linearGradient>
-            </defs>
-            <g class="m-bob">
-              <path d="M80 175 L140 175 L150 250 L70 250 Z" fill="#2b3547"/>
-              <path d="M70 250 L80 240 L90 250 L100 240 L110 250 L120 240 L130 250 L140 240 L150 250 Z" fill="#161c27"/>
-              <path d="M84 185 L62 215" stroke="url(#sc)" stroke-width="14" stroke-linecap="round"/>
-              <g class="m-wave"><path d="M136 185 L166 160" stroke="url(#sc)" stroke-width="14" stroke-linecap="round"/><circle cx="168" cy="158" r="10" fill="url(#sc)"/>
-                <g transform="rotate(-30 168 158)"><rect x="163" y="120" width="10" height="46" rx="3" fill="#f5c542"/><rect x="163" y="120" width="10" height="9" rx="3" fill="#f06b8a"/><path d="M163 166 L173 166 L168 178 Z" fill="#f2d9b0"/><path d="M166.5 174 L169.5 174 L168 178 Z" fill="#333"/></g></g>
-              <circle cx="62" cy="217" r="10" fill="url(#sc)"/>
-              <circle cx="110" cy="112" r="66" fill="url(#sc)"/>
-              <path d="M62 90 L72 64 L84 86 M92 78 L102 50 L112 78 M118 78 L128 50 L138 78 M148 86 L158 64 L166 90" stroke="#eaf7ff" stroke-width="5" fill="none" stroke-linecap="round"/>
-              <path d="M70 100 L76 112 L70 122 M150 100 L144 112 L150 122" stroke="#9dbbd0" stroke-width="2" fill="none"/>
-              <circle cx="78" cy="132" r="9" fill="#ffb3c7" opacity=".7"/><circle cx="142" cy="132" r="9" fill="#ffb3c7" opacity=".7"/>
-              <g class="m-glow"><circle cx="88" cy="112" r="22" fill="url(#gc)"/><circle cx="132" cy="112" r="22" fill="url(#gc)"/></g>
-              <g class="m-blink"><circle cx="88" cy="112" r="12" fill="#2ee6ff"/><circle cx="132" cy="112" r="12" fill="#2ee6ff"/><circle cx="88" cy="112" r="6" fill="#062a3a"/><circle cx="132" cy="112" r="6" fill="#062a3a"/><circle cx="92" cy="107" r="3" fill="#fff"/><circle cx="136" cy="107" r="3" fill="#fff"/></g>
-              <path d="M98 146 Q110 156 122 146" stroke="#5b7a94" stroke-width="3" fill="none" stroke-linecap="round"/>
-            </g>
-          </svg>
-
           <svg id="mascot-hood" class="mascot" viewBox="0 0 260 260" xmlns="http://www.w3.org/2000/svg" hidden>
             <defs>
               <radialGradient id="gd"><stop offset="0" stop-color="#bff6ff"/><stop offset="1" stop-color="#1ec8ff" stop-opacity="0"/></radialGradient>

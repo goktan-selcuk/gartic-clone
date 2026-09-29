@@ -188,8 +188,6 @@ textarea { width: 100%; resize: vertical; font-size: 1.05rem; }
   animation: shimmer 3s linear infinite;
 }
 @keyframes shimmer { to { background-position: 200% center; } }
-.tagline { font-weight: 600; color: var(--muted); min-height: 1.5em; transition: opacity .4s; }
-.tagline.fade { opacity: 0; }
 
 .snow { position: absolute; inset: -20px 0 0 0; pointer-events: none; z-index: 1; overflow: hidden; }
 .flake {
@@ -212,10 +210,6 @@ textarea { width: 100%; resize: vertical; font-size: 1.05rem; }
 @keyframes bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
 .m-glow { animation: glow 1.6s ease-in-out infinite; }
 @keyframes glow { 0%, 100% { opacity: .7; } 50% { opacity: 1; } }
-.m-wave { animation: wave 1.2s ease-in-out infinite; transform-origin: 150px 150px; }
-@keyframes wave { 0%, 100% { transform: rotate(0); } 50% { transform: rotate(-25deg); } }
-.m-blink { animation: blink 4s infinite; transform-origin: center; transform-box: fill-box; }
-@keyframes blink { 0%, 92%, 100% { transform: scaleY(1); } 96% { transform: scaleY(.1); } }
 .m-flicker { animation: flicker .5s steps(1) infinite; }
 @keyframes flicker { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
 .m-pop1 { animation: pop1 1.6s ease-in-out infinite; }
@@ -223,7 +217,7 @@ textarea { width: 100%; resize: vertical; font-size: 1.05rem; }
 .m-pop3 { animation: pop1 2.2s ease-in-out infinite .4s; }
 @keyframes pop1 { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-14px); } }
 @keyframes pop2 { 0%, 100% { transform: translateY(-8px); } 50% { transform: translateY(4px); } }
-@media (prefers-reduced-motion: reduce) { .m-bob, .m-glow, .m-wave, .m-blink, .m-flicker, .m-pop1, .m-pop2, .m-pop3, .flake { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .m-bob, .m-glow, .m-flicker, .m-pop1, .m-pop2, .m-pop3, .flake { animation: none; } }
 .ground {
   width: min(420px, 90%); height: 14px; margin-top: -8px; border-radius: 50%;
   background: radial-gradient(ellipse at center, rgba(120,200,255,.45), rgba(120,200,255,0) 70%);
@@ -241,7 +235,7 @@ textarea { width: 100%; resize: vertical; font-size: 1.05rem; }
 @keyframes bubbleIn { from { opacity: 0; transform: translateY(8px) scale(.95); } to { opacity: 1; transform: none; } }
 
 /* ---------- Sayaç ve ruh hali ---------- */
-.home-meta { display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: center; margin: -4px 0 8px; font-size: .85rem; color: var(--muted); }
+.home-meta { display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: center; margin: 4px 0 8px; font-size: .85rem; color: var(--muted); }
 .stat-line { font: inherit; background: none; border: none; padding: 0; color: var(--muted); cursor: pointer; text-align: left; }
 .stat-line strong { color: var(--text); font-variant-numeric: tabular-nums; }
 .stat-line:hover strong { color: var(--primary); }
