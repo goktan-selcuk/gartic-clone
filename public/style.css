@@ -21,7 +21,7 @@ body {
   min-height: 100vh;
 }
 
-#app { max-width: 1040px; margin: 0 auto; padding: 0 16px 56px; }
+#app { max-width: 1040px; margin: 0 auto; padding: 0 16px 40px; }
 
 .topbar {
   display: flex; align-items: center; justify-content: space-between;
@@ -156,9 +156,6 @@ textarea { width: 100%; resize: vertical; font-size: 1.05rem; }
   .card { padding: 14px; }
 }
 
-.sponsor {
-  position: fixed; right: 16px; bottom: 12px; font-size: 0.8rem; color: var(--muted);
-  background: rgba(255,255,255,.85); padding: 6px 12px; border-radius: 999px; border: 1px solid var(--border);
-  pointer-events: none; z-index: 50;
-}
+.topbar-right { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; margin-left: auto; }
+.sponsor { font-size: 0.78rem; color: var(--muted); }
 .sponsor strong { color: var(--primary); }
