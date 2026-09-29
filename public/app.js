@@ -64,6 +64,62 @@
     return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   }
 
+  // ---------- Giriş ekranı süsleri ----------
+  const TAGLINES = [
+    'Brace yourselves. Terrible drawings are coming.',
+    'Winter is coming. So is your coworker\'s stick figure.',
+    'What is dead may never draw.',
+    'A game has no artists.',
+    'Hold the door... hold the pencil.',
+    'You know nothing about drawing, Jon Snow.',
+    'The night is dark and full of doodles.',
+  ];
+  const BUBBLES = [
+    'Draw... or join the army of the dead.',
+    'I once drew a horse. It became a dragon.',
+    'Bring me the pencil of a thousand sketches.',
+    'Beyond the Wall, we only draw stick figures.',
+    'My eyes glow. My art does not.',
+    'Cold hands, warm doodles.',
+  ];
+  (function decorateHome() {
+    const snow = document.querySelector('.snow');
+    if (snow) {
+      for (let i = 0; i < 40; i++) {
+        const f = document.createElement('span');
+        f.className = 'flake';
+        f.textContent = ['❄', '❅', '❆', '•'][i % 4];
+        f.style.left = Math.random() * 100 + '%';
+        f.style.fontSize = (8 + Math.random() * 14) + 'px';
+        f.style.animationDuration = (7 + Math.random() * 9) + 's';
+        f.style.animationDelay = (-Math.random() * 16) + 's';
+        f.style.opacity = (0.4 + Math.random() * 0.6).toFixed(2);
+        snow.appendChild(f);
+      }
+    }
+    let ti = 0, bi = 0;
+    setInterval(() => {
+      if ($('view-home').hidden) return;
+      const t = $('tagline');
+      t.classList.add('fade');
+      setTimeout(() => { ti = (ti + 1) % TAGLINES.length; t.textContent = TAGLINES[ti]; t.classList.remove('fade'); }, 400);
+    }, 4500);
+    setInterval(() => {
+      if ($('view-home').hidden) return;
+      const b = $('walkerBubble');
+      bi = (bi + 1) % BUBBLES.length;
+      b.style.animation = 'none';
+      void b.offsetWidth; // animasyonu yeniden tetikle
+      b.textContent = BUBBLES[bi];
+      b.style.animation = '';
+    }, 6000);
+    // İsteğe bağlı: public/whitewalker.gif varsa SVG yerine onu göster
+    const gif = $('walkerGif');
+    const probe = new Image();
+    probe.onload = () => { gif.src = probe.src; gif.hidden = false; $('walkerSvg').hidden = true; };
+    probe.src = 'whitewalker.gif';
+  })();
+
   // ---------- Giriş ----------
   const savedName = localStorage.getItem('name') || '';
   $('nameInput').value = savedName;
