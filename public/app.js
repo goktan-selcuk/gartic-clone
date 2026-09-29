@@ -197,8 +197,6 @@
     if (isHost) {
       if (document.activeElement !== $('writeTime')) $('writeTime').value = s.settings.writeTime;
       if (document.activeElement !== $('drawTime')) $('drawTime').value = s.settings.drawTime;
-      if (document.activeElement !== $('maxRounds')) $('maxRounds').value = s.settings.maxRounds;
-      $('roundsHint').textContent = `This game: ${Math.min(s.players.length, s.settings.maxRounds)} rounds`;
       $('startBtn').disabled = s.players.length < s.minPlayers;
       $('startBtn').textContent = s.players.length < s.minPlayers
         ? `At least ${s.minPlayers} players needed`
@@ -207,11 +205,10 @@
   }
 
   function pushSettings() {
-    socket.emit('room:settings', { writeTime: $('writeTime').value, drawTime: $('drawTime').value, maxRounds: $('maxRounds').value });
+    socket.emit('room:settings', { writeTime: $('writeTime').value, drawTime: $('drawTime').value });
   }
   $('writeTime').addEventListener('change', pushSettings);
   $('drawTime').addEventListener('change', pushSettings);
-  $('maxRounds').addEventListener('change', pushSettings);
   $('startBtn').onclick = () => socket.emit('game:start');
 
   // ---------- Oyun ----------

@@ -10,7 +10,6 @@ const GRACE_MS = 3000;            // süre bitince istemcilerin son gönderimi i
 const ROOM_IDLE_MS = 20 * 60 * 1000; // kimse kalmayınca odanın silinme süresi
 const MIN_PLAYERS = 2;
 const MAX_PLAYERS = 45;
-const DEFAULT_MAX_ROUNDS = 10;
 
 const app = express();
 app.use(express.static(path.join(__dirname, 'public')));
@@ -49,7 +48,7 @@ function createRoom(hostId) {
     hostId,
     players: new Map(), // playerId -> { id, name, color, socketId, connected }
     phase: 'lobby',     // lobby | playing | results
-    settings: { writeTime: 60, drawTime: 90, maxRounds: DEFAULT_MAX_ROUNDS },
+    settings: { writeTime: 60, drawTime: 90 },
     colorSeq: 0,
     round: 0,
     totalRounds: 0,
@@ -178,7 +177,7 @@ function broadcast(room, opts) {
 function startGame(room) {
   room.order = connectedPlayers(room).map((p) => p.id);
   const n = room.order.length;
-  room.totalRounds = Math.min(n, room.settings.maxRounds);
+  room.totalRounds = n;
   room.chains = room.order.map((id) => ({ ownerId: id, entries: [] }));
   room.round = 0;
   room.phase = 'playing';
@@ -301,7 +300,6 @@ io.on('connection', (socket) => {
     if (!isHost(room) || room.phase !== 'lobby') return;
     room.settings.writeTime = clampInt(settings.writeTime, 15, 300, room.settings.writeTime);
     room.settings.drawTime = clampInt(settings.drawTime, 20, 600, room.settings.drawTime);
-    room.settings.maxRounds = clampInt(settings.maxRounds, 2, MAX_PLAYERS, room.settings.maxRounds);
     broadcast(room);
   });
 
