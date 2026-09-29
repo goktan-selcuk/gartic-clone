@@ -24,6 +24,12 @@
         <div class="card home-card">
           <h1 class="home-title">Write. Draw. <span class="icy">Freeze.</span> 🥶</h1>
           <p class="tagline" id="tagline">Brace yourselves. Terrible drawings are coming.</p>
+          <div class="home-meta">
+            <button id="statsLine" class="stat-line" type="button" title="Since the last server restart">
+              Drawings ruined so far: <strong id="statDrawings">0</strong> · Sentences misunderstood: <strong id="statSentences">0</strong>
+            </button>
+            <div class="mood">Today's mood: <strong id="moodText">Red Wedding energy</strong></div>
+          </div>
           <label class="field">
             <span>Your name</span>
             <input id="nameInput" type="text" maxlength="20" placeholder="Nickname" autocomplete="off">
@@ -124,6 +130,27 @@
             </g>
           </svg>
           <div class="ground"></div>
+        </div>
+
+        <!-- Sur -->
+        <div class="wall" aria-hidden="false">
+          <button id="towerBtn" class="tower" type="button" title="Night's Watch">
+            <svg viewBox="0 0 80 110" xmlns="http://www.w3.org/2000/svg">
+              <rect x="20" y="30" width="40" height="80" fill="#3a465a"/>
+              <rect x="14" y="22" width="52" height="12" fill="#2b3547"/>
+              <rect x="16" y="12" width="8" height="12" fill="#2b3547"/><rect x="30" y="12" width="8" height="12" fill="#2b3547"/><rect x="44" y="12" width="8" height="12" fill="#2b3547"/><rect x="58" y="12" width="8" height="12" fill="#2b3547"/>
+              <rect x="34" y="60" width="12" height="20" rx="6" fill="#0b1220"/>
+              <rect x="36" y="42" width="8" height="8" fill="#ffd27a" class="tower-light"/>
+              <path d="M24 12 L24 -2 L44 4 L24 10" fill="#8b1e2d"/>
+            </svg>
+          </button>
+          <div class="wall-face"></div>
+          <div id="oath" class="oath" hidden>
+            <p><em>Night gathers, and now my drawing begins.</em></p>
+            <p>It shall not end until my timer runs out. I shall take no reference, hold no ruler, erase no mistakes. I shall wear no talent and win no prizes.</p>
+            <p>I am the pencil in the darkness. I am the doodler on the walls. I am the shield that guards the realms of bad art, for this round and all the rounds to come.</p>
+            <button id="oathClose" class="btn small" type="button">And now my watch begins</button>
+          </div>
         </div>
       </section>
 
@@ -248,8 +275,8 @@
     </main>
 
     <div id="toast" class="toast" hidden></div>
+    <footer class="footer"><button class="sponsor" type="button">Powered by <strong>Whitewalkers</strong></button></footer>
   </div>
-  <div class="sponsor">Powered by <strong>Whitewalkers</strong></div>
 
   <script src="/socket.io/socket.io.js"></script>
   <script src="app.js"></script>

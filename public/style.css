@@ -21,7 +21,9 @@ body {
   min-height: 100vh;
 }
 
-#app { max-width: 1040px; margin: 0 auto; padding: 0 16px 56px; }
+#app { max-width: 1040px; margin: 0 auto; padding: 0 16px 16px; min-height: 100vh; display: flex; flex-direction: column; }
+main { flex: 1; }
+.footer { display: flex; justify-content: flex-end; padding-top: 12px; }
 
 .topbar {
   display: flex; align-items: center; justify-content: space-between;
@@ -166,10 +168,14 @@ textarea { width: 100%; resize: vertical; font-size: 1.05rem; }
 }
 
 .sponsor {
-  position: fixed; right: 16px; bottom: 12px; font-size: 0.8rem; color: var(--muted);
+  color: var(--muted);
   background: rgba(255,255,255,.85); padding: 6px 12px; border-radius: 999px; border: 1px solid var(--border);
-  pointer-events: none; z-index: 50;
+  cursor: pointer; font: inherit; font-size: 0.8rem; user-select: none;
+  transition: transform .1s;
 }
+.sponsor:active { transform: scale(.96); }
+.sponsor.cracked { animation: crack .5s ease; }
+@keyframes crack { 0% { transform: translate(0,0); } 20% { transform: translate(-2px,1px) rotate(-1deg); } 40% { transform: translate(2px,-1px) rotate(1deg); } 60% { transform: translate(-1px,0); } 100% { transform: none; } }
 .sponsor strong { color: var(--primary); }
 
 /* ---------- Giriş ekranı: kar, White Walker ---------- */
@@ -233,3 +239,51 @@ textarea { width: 100%; resize: vertical; font-size: 1.05rem; }
   transform: translateX(-50%) rotate(45deg);
 }
 @keyframes bubbleIn { from { opacity: 0; transform: translateY(8px) scale(.95); } to { opacity: 1; transform: none; } }
+
+/* ---------- Sayaç ve ruh hali ---------- */
+.home-meta { display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: center; margin: -4px 0 8px; font-size: .85rem; color: var(--muted); }
+.stat-line { font: inherit; background: none; border: none; padding: 0; color: var(--muted); cursor: pointer; text-align: left; }
+.stat-line strong { color: var(--text); font-variant-numeric: tabular-nums; }
+.stat-line:hover strong { color: var(--primary); }
+.mood strong { color: var(--accent); }
+
+/* ---------- Sur ---------- */
+.wall { position: relative; margin-top: 8px; z-index: 2; }
+.wall-face {
+  height: 64px; border-radius: 12px 12px 0 0;
+  background:
+    linear-gradient(rgba(255,255,255,.12), rgba(255,255,255,0)),
+    repeating-linear-gradient(0deg, transparent 0 22px, #22304a 22px 25px),
+    repeating-linear-gradient(90deg, transparent 0 58px, #22304a 58px 61px),
+    linear-gradient(#5b6b86, #3a465a);
+  background-blend-mode: normal, normal, normal, normal;
+  box-shadow: inset 0 6px 12px rgba(255,255,255,.18), 0 -6px 18px rgba(120,200,255,.15);
+  position: relative; overflow: hidden;
+}
+.wall-face::before {
+  content: ""; position: absolute; inset: 0;
+  background: repeating-linear-gradient(90deg, transparent 0 29px, #22304a 29px 32px, transparent 32px 58px);
+  background-position: 0 25px; background-size: 61px 50px; opacity: .6;
+}
+.wall-face::after {
+  content: ""; position: absolute; left: 0; right: 0; top: 0; height: 10px;
+  background: linear-gradient(#eaf7ff, rgba(234,247,255,0)); opacity: .8;
+}
+.tower {
+  position: absolute; right: 8%; bottom: 58px; width: 64px; height: 88px; background: none; border: none; padding: 0; cursor: pointer;
+  filter: drop-shadow(0 6px 10px rgba(0,0,0,.35)); transition: transform .15s;
+}
+.tower:hover { transform: translateY(-3px); }
+.tower svg { width: 100%; height: 100%; overflow: visible; }
+.tower-light { animation: torch 1.2s ease-in-out infinite alternate; }
+@keyframes torch { from { opacity: .6; } to { opacity: 1; } }
+.oath {
+  position: absolute; left: 50%; bottom: 76px; transform: translateX(-50%);
+  width: min(520px, 92%); background: #0b1220; color: #e6eef8; border: 2px solid #2f4a6e; border-radius: 14px;
+  padding: 18px 20px; box-shadow: 0 16px 40px rgba(0,0,0,.45); font-size: .95rem; line-height: 1.5; z-index: 5;
+  animation: bubbleIn .4s ease;
+}
+.oath p { margin: 0 0 10px; }
+.oath em { color: #7fd0ff; font-style: normal; font-weight: 800; }
+.oath .btn { background: #142236; color: #e6eef8; border-color: #2f4a6e; }
+@media (max-width: 640px) { .home-meta { font-size: .8rem; } .tower { right: 4%; } }

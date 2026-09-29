@@ -42,6 +42,23 @@ function cleanName(name) {
   return String(name || '').trim().replace(/\s+/g, ' ').slice(0, 20) || 'Anonymous';
 }
 
+// Her oyuncuya, haberi olmadan, ismine parantez içinde bir unvan eklenir
+const TITLES = [
+  'knows nothing', 'first of their name', 'breaker of pencils', 'sees your drawing',
+  'holds the door', 'king in the north', 'mother of doodles', 'the unburnt',
+  'warden of the eraser', 'of House Stick Figure', 'definitely not a wight',
+  'drinks and draws things', 'bends the knee', 'three-eyed doodler',
+  'protector of the canvas', 'lord of light sketches', 'the hand of the crayon',
+  'shame, shame, shame', 'winter is their excuse', 'a girl has no talent',
+];
+function titledName(name) {
+  return `${name} (${TITLES[Math.floor(Math.random() * TITLES.length)]})`;
+}
+
+// Sunucu açıldığından beri: sayaçlar (bellekte, yeniden başlayınca sıfırlanır)
+const stats = { drawings: 0, sentences: 0, games: 0, since: Date.now() };
+function broadcastStats() { io.emit('stats', stats); }
+
 function createRoom(hostId) {
   const room = {
     code: genCode(),
@@ -181,6 +198,7 @@ function startGame(room) {
   room.chains = room.order.map((id) => ({ ownerId: id, entries: [] }));
   room.round = 0;
   room.phase = 'playing';
+  stats.games++;
   beginRound(room);
 }
 
@@ -203,8 +221,11 @@ function finishRound(room) {
     const ci = chainIndexFor(room, pid, room.round);
     let content = room.submissions.get(pid);
     if (content == null) content = type === 'text' ? '' : null;
+    if (type === 'draw' && content) stats.drawings++;
+    if (type === 'text' && content) stats.sentences++;
     room.chains[ci].entries.push({ type, authorId: pid, content });
   }
+  broadcastStats();
   room.round++;
   if (room.round >= room.totalRounds) {
     room.phase = 'results';
@@ -248,6 +269,7 @@ function validateContent(type, content) {
 }
 
 io.on('connection', (socket) => {
+  socket.emit('stats', stats);
   const getRoom = () => (socket.data.code ? rooms.get(socket.data.code) : null);
   const isHost = (room) => room && room.hostId === socket.data.playerId;
 
@@ -269,13 +291,13 @@ io.on('connection', (socket) => {
     if (existing) {
       existing.connected = true;
       existing.socketId = socket.id;
-      if (name) existing.name = name;
+      // Yeniden bağlanan oyuncu unvanını korur
     } else {
       if (room.phase !== 'lobby') return cb({ error: 'The game has already started, you cannot join this room right now' });
       if (room.players.size >= MAX_PLAYERS) return cb({ error: 'Room is full' });
       room.players.set(playerId, {
         id: playerId,
-        name,
+        name: titledName(name),
         color: pickColor(room),
         socketId: socket.id,
         connected: true,
