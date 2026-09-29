@@ -53,9 +53,9 @@
   async function copyText(text) {
     try {
       await navigator.clipboard.writeText(text);
-      toast('Kopyalandı 📋');
+      toast('Copied 📋');
     } catch {
-      prompt('Kopyala:', text);
+      prompt('Copy:', text);
     }
   }
 
@@ -71,7 +71,7 @@
 
   function getName() {
     const name = $('nameInput').value.trim();
-    if (!name) { toast('Önce adını yaz 🙂'); $('nameInput').focus(); return null; }
+    if (!name) { toast('Enter your name first 🙂'); $('nameInput').focus(); return null; }
     localStorage.setItem('name', name);
     return name;
   }
@@ -89,7 +89,7 @@
   function join(code) {
     const name = getName();
     if (!name) return;
-    if (!code || code.length < 4) { toast('4 haneli oda kodunu gir'); return; }
+    if (!code || code.length < 4) { toast('Enter the 4-character room code'); return; }
     socket.emit('room:join', { code, name, playerId }, (res) => {
       if (res.error) return toast(res.error);
       sessionStorage.setItem('roomCode', res.code);
@@ -116,13 +116,13 @@
     }
   });
 
-  socket.on('disconnect', () => toast('Bağlantı koptu, yeniden bağlanılıyor...', 4000));
+  socket.on('disconnect', () => toast('Connection lost, reconnecting...', 4000));
   socket.on('toast', (msg) => toast(msg));
   socket.on('kicked', () => {
     sessionStorage.removeItem('roomCode');
     state = null;
     showView('home');
-    toast('Odadan çıkarıldın');
+    toast('You were removed from the room');
   });
 
   function leaveRoom() {
@@ -177,10 +177,10 @@
       const name = document.createElement('span');
       name.textContent = p.name;
       li.appendChild(name);
-      if (p.id === s.hostId) { const t = document.createElement('span'); t.className = 'tag'; t.textContent = 'Ev sahibi'; li.appendChild(t); }
-      else if (p.id === s.you) { const t = document.createElement('span'); t.className = 'tag you'; t.textContent = 'Sen'; li.appendChild(t); }
+      if (p.id === s.hostId) { const t = document.createElement('span'); t.className = 'tag'; t.textContent = 'Host'; li.appendChild(t); }
+      else if (p.id === s.you) { const t = document.createElement('span'); t.className = 'tag you'; t.textContent = 'You'; li.appendChild(t); }
       else if (isHost) {
-        const k = document.createElement('button'); k.className = 'kick'; k.title = 'Odadan çıkar'; k.textContent = '✕';
+        const k = document.createElement('button'); k.className = 'kick'; k.title = 'Remove from room'; k.textContent = '✕';
         k.onclick = () => socket.emit('player:kick', { playerId: p.id });
         li.appendChild(k);
       }
@@ -194,8 +194,8 @@
       if (document.activeElement !== $('drawTime')) $('drawTime').value = s.settings.drawTime;
       $('startBtn').disabled = s.players.length < s.minPlayers;
       $('startBtn').textContent = s.players.length < s.minPlayers
-        ? `En az ${s.minPlayers} oyuncu gerekli`
-        : 'Oyunu Başlat 🚀';
+        ? `At least ${s.minPlayers} players needed`
+        : 'Start Game 🚀';
     }
   }
 
@@ -214,9 +214,9 @@
     const newRound = roundKey !== lastRoundKey;
     lastRoundKey = roundKey;
 
-    const typeLabel = s.round === 0 ? 'Cümle yaz' : t.type === 'draw' ? 'Çiz' : 'Tarif et';
-    $('roundLabel').textContent = `Tur ${s.round + 1} / ${s.totalRounds}`;
-    $('taskLabel').textContent = t.spectator ? 'İzliyorsun' : `${typeLabel} · ${t.chainOwner} albümü`;
+    const typeLabel = s.round === 0 ? 'Write a sentence' : t.type === 'draw' ? 'Draw' : 'Describe';
+    $('roundLabel').textContent = `Round ${s.round + 1} / ${s.totalRounds}`;
+    $('taskLabel').textContent = t.spectator ? 'Spectating' : `${typeLabel} · ${t.chainOwner}'s album`;
 
     $('textPhase').hidden = true;
     $('drawPhase').hidden = true;
@@ -254,7 +254,7 @@
       if (newRound) { $('textInput').value = ''; updateCount(); setTimeout(() => $('textInput').focus(), 50); }
     } else {
       $('drawPhase').hidden = false;
-      $('drawPromptText').textContent = (t.prev && t.prev.content) ? t.prev.content : '(boş bırakılmış... istediğini çiz!)';
+      $('drawPromptText').textContent = (t.prev && t.prev.content) ? t.prev.content : '(left blank... draw whatever you like!)';
       if (newRound) { resetCanvas(); }
       fitCanvas();
     }
@@ -265,7 +265,7 @@
     const c = document.createElement('canvas'); c.width = 800; c.height = 600;
     const ctx = c.getContext('2d'); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, 800, 600);
     ctx.fillStyle = '#999'; ctx.font = '28px sans-serif'; ctx.textAlign = 'center';
-    ctx.fillText('(çizim gönderilmemiş)', 400, 300);
+    ctx.fillText('(no drawing submitted)', 400, 300);
     return c.toDataURL('image/png');
   }
 
@@ -277,7 +277,7 @@
 
   function submitText(force = false) {
     const text = $('textInput').value.trim();
-    if (!text && !force) { toast('Boş gönderemezsin 🙂'); return; }
+    if (!text && !force) { toast("You can't submit an empty text 🙂"); return; }
     $('textSubmit').disabled = true;
     socket.emit('round:submit', { content: text }, (res) => {
       $('textSubmit').disabled = false;
@@ -300,7 +300,7 @@
     if (autoSubmitted || !state || state.phase !== 'playing' || state.task.spectator || state.task.submitted) return;
     autoSubmitted = true;
     if (state.task.type === 'text') submitText(true); else submitDraw();
-    toast('Süre doldu, gönderildi ⏰');
+    toast('Time is up, submitted ⏰');
   }
 
   // ---------- Zamanlayıcı ----------
@@ -484,8 +484,8 @@
     const r = s.reveal;
     const chain = chains[r.chain];
     if (!chain) return;
-    $('albumTitle').textContent = `${chain.owner} albümü`;
-    $('albumIndex').textContent = `Albüm ${r.chain + 1} / ${chains.length}`;
+    $('albumTitle').textContent = `${chain.owner}'s album`;
+    $('albumIndex').textContent = `Album ${r.chain + 1} / ${chains.length}`;
 
     const wrap = $('albumEntries');
     const key = `${r.chain}`;
@@ -501,7 +501,7 @@
       who.className = 'who';
       who.appendChild(avatar({ name: e.author, color: e.authorColor }));
       const nm = document.createElement('span');
-      nm.textContent = e.type === 'text' ? (i === 0 ? `${e.author} yazdı:` : `${e.author} tarif etti:`) : `${e.author} çizdi:`;
+      nm.textContent = e.type === 'text' ? (i === 0 ? `${e.author} wrote:` : `${e.author} described:`) : `${e.author} drew:`;
       who.appendChild(nm);
       const st = document.createElement('span'); st.className = 'step'; st.textContent = `${i + 1}/${chain.entries.length}`;
       who.appendChild(st);
@@ -509,12 +509,12 @@
       if (e.type === 'text') {
         const t = document.createElement('div');
         t.className = 'text' + (e.content ? '' : ' empty');
-        t.textContent = e.content || '(süre doldu, bir şey yazamadı)';
+        t.textContent = e.content || '(time ran out, nothing written)';
         card.appendChild(t);
       } else {
         const img = document.createElement('img');
         img.src = e.content || blankImage();
-        img.alt = 'Çizim';
+        img.alt = 'Drawing';
         card.appendChild(img);
       }
       wrap.appendChild(card);

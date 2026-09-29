@@ -1,76 +1,76 @@
 <!DOCTYPE html>
-<html lang="tr">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Çizgi Telefon</title>
+  <title>Sketch Phone</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎨</text></svg>">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <div id="app">
     <header class="topbar">
-      <div class="brand">🎨 Çizgi Telefon</div>
+      <div class="brand">🎨 Sketch Phone</div>
       <div id="roomBadge" class="room-badge" hidden>
-        <span>Oda</span> <strong id="badgeCode"></strong>
-        <button id="badgeCopy" class="btn tiny" title="Davet linkini kopyala">Linki kopyala</button>
+        <span>Room</span> <strong id="badgeCode"></strong>
+        <button id="badgeCopy" class="btn tiny" title="Copy invite link">Copy link</button>
       </div>
     </header>
 
     <main>
-      <!-- GİRİŞ -->
+      <!-- HOME -->
       <section id="view-home" class="view card">
-        <h1>Çiz, yaz, gül 🙃</h1>
-        <p class="muted">Gartic Phone tarzı bir oyun: biri cümle yazar, diğeri çizer, bir sonraki çizimi tarif eder... Sonunda ortaya ne çıkıyor bakalım.</p>
+        <h1>Write, draw, laugh 🙃</h1>
+        <p class="muted">A Gartic Phone style game: someone writes a sentence, the next person draws it, the next one describes the drawing... Let's see what comes out at the end.</p>
         <label class="field">
-          <span>Adın</span>
-          <input id="nameInput" type="text" maxlength="20" placeholder="Takma adın" autocomplete="off">
+          <span>Your name</span>
+          <input id="nameInput" type="text" maxlength="20" placeholder="Nickname" autocomplete="off">
         </label>
         <div class="row">
-          <button id="createBtn" class="btn primary big">Yeni Oda Kur</button>
+          <button id="createBtn" class="btn primary big">Create a Room</button>
         </div>
-        <div class="divider"><span>veya</span></div>
+        <div class="divider"><span>or</span></div>
         <div class="row">
-          <input id="codeInput" type="text" maxlength="4" placeholder="ODA KODU" class="code-input" autocomplete="off">
-          <button id="joinBtn" class="btn big">Odaya Katıl</button>
+          <input id="codeInput" type="text" maxlength="4" placeholder="ROOM CODE" class="code-input" autocomplete="off">
+          <button id="joinBtn" class="btn big">Join Room</button>
         </div>
       </section>
 
-      <!-- LOBİ -->
+      <!-- LOBBY -->
       <section id="view-lobby" class="view card" hidden>
         <div class="lobby-head">
           <div>
-            <div class="muted">Oda kodu</div>
+            <div class="muted">Room code</div>
             <div id="lobbyCode" class="big-code"></div>
           </div>
           <div class="lobby-actions">
-            <button id="copyLinkBtn" class="btn">🔗 Davet linkini kopyala</button>
+            <button id="copyLinkBtn" class="btn">🔗 Copy invite link</button>
           </div>
         </div>
-        <p class="muted">Arkadaşların bu linkle ya da oda koduyla katılabilir. Herkes gelince ev sahibi oyunu başlatır.</p>
+        <p class="muted">Your friends can join with this link or the room code. Once everyone is in, the host starts the game.</p>
 
-        <h3>Oyuncular <span id="playerCount" class="muted"></span></h3>
+        <h3>Players <span id="playerCount" class="muted"></span></h3>
         <ul id="lobbyPlayers" class="player-list"></ul>
 
         <div id="hostPanel" hidden>
-          <h3>Ayarlar</h3>
+          <h3>Settings</h3>
           <div class="settings">
             <label class="field inline">
-              <span>Yazma süresi (sn)</span>
+              <span>Writing time (sec)</span>
               <input id="writeTime" type="number" min="15" max="300" step="5">
             </label>
             <label class="field inline">
-              <span>Çizim süresi (sn)</span>
+              <span>Drawing time (sec)</span>
               <input id="drawTime" type="number" min="20" max="600" step="10">
             </label>
           </div>
-          <button id="startBtn" class="btn primary big">Oyunu Başlat 🚀</button>
+          <button id="startBtn" class="btn primary big">Start Game 🚀</button>
         </div>
-        <p id="waitHost" class="muted" hidden>Ev sahibinin oyunu başlatması bekleniyor...</p>
-        <button id="leaveBtn" class="btn ghost small">Odadan ayrıl</button>
+        <p id="waitHost" class="muted" hidden>Waiting for the host to start the game...</p>
+        <button id="leaveBtn" class="btn ghost small">Leave room</button>
       </section>
 
-      <!-- OYUN -->
+      <!-- GAME -->
       <section id="view-play" class="view" hidden>
         <div class="play-head card">
           <div class="round-info">
@@ -83,35 +83,35 @@
           </div>
         </div>
 
-        <!-- Yazma ekranı -->
+        <!-- Writing -->
         <div id="textPhase" class="card" hidden>
           <div id="textPromptWrap" hidden>
-            <p class="muted">Bu çizimi tarif et:</p>
-            <img id="textPromptImg" class="prompt-img" alt="Tarif edilecek çizim">
+            <p class="muted">Describe this drawing:</p>
+            <img id="textPromptImg" class="prompt-img" alt="Drawing to describe">
           </div>
-          <p id="textIntro" class="muted" hidden>Komik ya da tuhaf bir cümle yaz. Sıradaki kişi bunu çizmeye çalışacak!</p>
-          <textarea id="textInput" maxlength="200" rows="3" placeholder="Bir şeyler yaz..."></textarea>
+          <p id="textIntro" class="muted" hidden>Write a funny or weird sentence. The next player will try to draw it!</p>
+          <textarea id="textInput" maxlength="200" rows="3" placeholder="Type something..."></textarea>
           <div class="row end">
             <span id="textCount" class="muted small">0/200</span>
-            <button id="textSubmit" class="btn primary">Gönder ✔</button>
+            <button id="textSubmit" class="btn primary">Submit ✔</button>
           </div>
         </div>
 
-        <!-- Çizim ekranı -->
+        <!-- Drawing -->
         <div id="drawPhase" class="card" hidden>
-          <div class="draw-prompt">Şunu çiz: <strong id="drawPromptText"></strong></div>
+          <div class="draw-prompt">Draw this: <strong id="drawPromptText"></strong></div>
           <div class="draw-area">
             <div class="tools">
               <div class="palette" id="palette"></div>
               <div class="tool-row">
-                <button class="tool active" data-tool="brush" title="Fırça">🖌️</button>
-                <button class="tool" data-tool="eraser" title="Silgi">🧽</button>
-                <button class="tool" data-tool="fill" title="Doldur">🪣</button>
-                <button class="tool" id="undoBtn" title="Geri al">↩️</button>
-                <button class="tool" id="clearBtn" title="Temizle">🗑️</button>
+                <button class="tool active" data-tool="brush" title="Brush (B)">🖌️</button>
+                <button class="tool" data-tool="eraser" title="Eraser (E)">🧽</button>
+                <button class="tool" data-tool="fill" title="Fill (F)">🪣</button>
+                <button class="tool" id="undoBtn" title="Undo (Ctrl+Z)">↩️</button>
+                <button class="tool" id="clearBtn" title="Clear">🗑️</button>
               </div>
               <label class="size-row">
-                <span>Kalınlık</span>
+                <span>Brush size</span>
                 <input id="sizeInput" type="range" min="2" max="40" value="6">
                 <span id="sizePreview" class="size-preview"></span>
               </label>
@@ -121,24 +121,24 @@
             </div>
           </div>
           <div class="row end">
-            <button id="drawSubmit" class="btn primary">Bitti ✔</button>
+            <button id="drawSubmit" class="btn primary">Done ✔</button>
           </div>
         </div>
 
-        <!-- Gönderdikten sonra -->
+        <!-- After submitting -->
         <div id="waitPhase" class="card" hidden>
-          <h2>Gönderildi ✅</h2>
-          <p class="muted">Diğerleri bekleniyor...</p>
+          <h2>Submitted ✅</h2>
+          <p class="muted">Waiting for the others...</p>
           <ul id="waitPlayers" class="player-list compact"></ul>
         </div>
 
         <div id="spectatorPhase" class="card" hidden>
-          <h2>İzleyicisin 👀</h2>
-          <p class="muted">Oyun başladıktan sonra katıldın; bir sonraki oyunda oynayabilirsin.</p>
+          <h2>You're spectating 👀</h2>
+          <p class="muted">You joined after the game started. You can play in the next game.</p>
         </div>
       </section>
 
-      <!-- SONUÇLAR -->
+      <!-- RESULTS -->
       <section id="view-results" class="view" hidden>
         <div class="card results-head">
           <h2 id="albumTitle"></h2>
@@ -147,16 +147,17 @@
         <div id="albumEntries" class="album"></div>
         <div class="card results-nav">
           <div id="resultsHostNav">
-            <button id="prevBtn" class="btn">← Önceki</button>
-            <button id="nextBtn" class="btn primary big">Sonraki →</button>
-            <button id="restartBtn" class="btn primary big" hidden>Yeni Oyun 🔁</button>
+            <button id="prevBtn" class="btn">← Previous</button>
+            <button id="nextBtn" class="btn primary big">Next →</button>
+            <button id="restartBtn" class="btn primary big" hidden>New Game 🔁</button>
           </div>
-          <p id="resultsWait" class="muted" hidden>Ev sahibi albümleri açıyor...</p>
+          <p id="resultsWait" class="muted" hidden>The host is revealing the albums...</p>
         </div>
       </section>
     </main>
 
     <div id="toast" class="toast" hidden></div>
+    <div class="sponsor">Powered by <strong>Whitewalkers</strong></div>
   </div>
 
   <script src="/socket.io/socket.io.js"></script>

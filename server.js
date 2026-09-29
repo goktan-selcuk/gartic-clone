@@ -44,7 +44,7 @@ function clampInt(v, min, max, def) {
 }
 
 function cleanName(name) {
-  return String(name || '').trim().replace(/\s+/g, ' ').slice(0, 20) || 'İsimsiz';
+  return String(name || '').trim().replace(/\s+/g, ' ').slice(0, 20) || 'Anonymous';
 }
 
 function createRoom(hostId) {
@@ -241,15 +241,15 @@ io.on('connection', (socket) => {
   const isHost = (room) => room && room.hostId === socket.data.playerId;
 
   socket.on('room:create', ({ name, playerId } = {}, cb = () => {}) => {
-    if (!playerId) return cb({ error: 'Oyuncu kimliği eksik' });
+    if (!playerId) return cb({ error: 'Missing player id' });
     const room = createRoom(playerId);
     joinRoom(room, cleanName(name), playerId, cb);
   });
 
   socket.on('room:join', ({ code, name, playerId } = {}, cb = () => {}) => {
-    if (!playerId) return cb({ error: 'Oyuncu kimliği eksik' });
+    if (!playerId) return cb({ error: 'Missing player id' });
     const room = rooms.get(String(code || '').trim().toUpperCase());
-    if (!room) return cb({ error: 'Böyle bir oda yok' });
+    if (!room) return cb({ error: 'No such room' });
     joinRoom(room, cleanName(name), playerId, cb);
   });
 
@@ -260,8 +260,8 @@ io.on('connection', (socket) => {
       existing.socketId = socket.id;
       if (name) existing.name = name;
     } else {
-      if (room.phase !== 'lobby') return cb({ error: 'Oyun başlamış, bu odaya şu an katılamazsın' });
-      if (room.players.size >= MAX_PLAYERS) return cb({ error: 'Oda dolu' });
+      if (room.phase !== 'lobby') return cb({ error: 'The game has already started, you cannot join this room right now' });
+      if (room.players.size >= MAX_PLAYERS) return cb({ error: 'Room is full' });
       room.players.set(playerId, {
         id: playerId,
         name,
@@ -295,20 +295,20 @@ io.on('connection', (socket) => {
     const room = getRoom();
     if (!isHost(room) || room.phase !== 'lobby') return;
     if (connectedPlayers(room).length < MIN_PLAYERS) {
-      return socket.emit('toast', `En az ${MIN_PLAYERS} oyuncu gerekli`);
+      return socket.emit('toast', `At least ${MIN_PLAYERS} players needed`);
     }
     startGame(room);
   });
 
   socket.on('round:submit', ({ content } = {}, cb = () => {}) => {
     const room = getRoom();
-    if (!room || room.phase !== 'playing') return cb({ error: 'Tur aktif değil' });
+    if (!room || room.phase !== 'playing') return cb({ error: 'No active round' });
     const pid = socket.data.playerId;
-    if (!room.order.includes(pid)) return cb({ error: 'Bu oyunda değilsin' });
+    if (!room.order.includes(pid)) return cb({ error: 'You are not in this game' });
     if (room.submissions.has(pid)) return cb({ ok: true });
     const type = roundType(room.round);
     const clean = validateContent(type, content);
-    if (type === 'draw' && clean == null) return cb({ error: 'Çizim alınamadı' });
+    if (type === 'draw' && clean == null) return cb({ error: 'Could not read the drawing' });
     room.submissions.set(pid, clean);
     cb({ ok: true });
     broadcast(room);
@@ -391,5 +391,5 @@ setInterval(() => {
 }, 60 * 1000);
 
 server.listen(PORT, () => {
-  console.log(`Gartic klonu ${PORT} portunda çalışıyor`);
+  console.log(`Sketch Phone running on port ${PORT}`);
 });
