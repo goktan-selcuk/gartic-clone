@@ -403,41 +403,40 @@
     $('statSentences').textContent = st.sentences.toLocaleString('en-US');
   });
 
-  // Buz çatırtısı: filtrelenmiş gürültü + birkaç keskin çıtırtı + düşük bir "gümleme"
+  // Buz sesi: ince, kısa bir "tink" ve yüksek frekanslı hafif bir çıtırtı (dosya yok, Web Audio)
   function playIceCrack() {
     try {
       audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
       if (audioCtx.state === 'suspended') audioCtx.resume();
       const ctx = audioCtx, t0 = ctx.currentTime;
-      const dur = 0.9;
+      // 1) Cam gibi iki ince tını
+      for (const [freq, delay, amp] of [[2637, 0, 0.12], [3520, 0.06, 0.07]]) {
+        const osc = ctx.createOscillator(); const g = ctx.createGain();
+        osc.type = 'sine'; osc.frequency.value = freq;
+        g.gain.setValueAtTime(0.0001, t0 + delay);
+        g.gain.exponentialRampToValueAtTime(amp, t0 + delay + 0.005);
+        g.gain.exponentialRampToValueAtTime(0.0001, t0 + delay + 0.35);
+        osc.connect(g).connect(ctx.destination); osc.start(t0 + delay); osc.stop(t0 + delay + 0.4);
+      }
+      // 2) Çok hafif, tiz çıtırtı
+      const dur = 0.3;
       const buf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * dur), ctx.sampleRate);
       const d = buf.getChannelData(0);
-      // Çıtırtılar: rastgele anlarda kısa, sert darbeler; arada zayıf gürültü
-      let next = 0;
+      let next = 0.01;
       for (let i = 0; i < d.length; i++) {
         const t = i / ctx.sampleRate;
-        let v = (Math.random() * 2 - 1) * 0.03 * Math.exp(-t * 3);
         if (t >= next) {
-          next = t + 0.02 + Math.random() * 0.09;
-          const len = Math.floor(ctx.sampleRate * (0.004 + Math.random() * 0.01));
-          const amp = 0.5 + Math.random() * 0.5;
-          for (let k = 0; k < len && i + k < d.length; k++) d[i + k] += (Math.random() * 2 - 1) * amp * (1 - k / len) * Math.exp(-t * 1.5);
+          next = t + 0.015 + Math.random() * 0.05;
+          const len = Math.floor(ctx.sampleRate * 0.002);
+          for (let k = 0; k < len && i + k < d.length; k++) d[i + k] += (Math.random() * 2 - 1) * (1 - k / len);
         }
-        d[i] += v;
       }
       const src = ctx.createBufferSource(); src.buffer = buf;
-      const hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 1800;
-      const bp = ctx.createBiquadFilter(); bp.type = 'peaking'; bp.frequency.value = 4200; bp.Q.value = 1.5; bp.gain.value = 8;
-      const g = ctx.createGain(); g.gain.setValueAtTime(0.6, t0); g.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
-      src.connect(hp).connect(bp).connect(g).connect(ctx.destination);
-      src.start(t0);
-      // Düşük gümleme
-      const osc = ctx.createOscillator(); const og = ctx.createGain();
-      osc.type = 'sine'; osc.frequency.setValueAtTime(140, t0); osc.frequency.exponentialRampToValueAtTime(40, t0 + 0.4);
-      og.gain.setValueAtTime(0.35, t0); og.gain.exponentialRampToValueAtTime(0.001, t0 + 0.45);
-      osc.connect(og).connect(ctx.destination); osc.start(t0); osc.stop(t0 + 0.5);
+      const hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 5000;
+      const g = ctx.createGain(); g.gain.setValueAtTime(0.08, t0); g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+      src.connect(hp).connect(g).connect(ctx.destination); src.start(t0);
     } catch { /* ses yoksa geç */ }
-    if (navigator.vibrate) navigator.vibrate(40);
+    if (navigator.vibrate) navigator.vibrate(20);
   }
 
   // Son 5 saniyede ufak bir bip (Web Audio; tarayıcı etkileşim sonrası ses çalmaya izin verir)
