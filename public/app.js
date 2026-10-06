@@ -181,6 +181,13 @@
   });
 
   socket.on('disconnect', () => toast('Connection lost, reconnecting...', 4000));
+
+  // Keepalive: Render'ın ücretsiz planı 15 dk HTTP isteği gelmezse servisi uyutur ve bellekteki odalar silinir.
+  // Odadayken 5 dakikada bir küçük bir istek atarak uzun oyunlarda sunucuyu uyanık tutuyoruz.
+  setInterval(() => {
+    if (!state || !sessionStorage.getItem('roomCode')) return;
+    fetch('/health', { cache: 'no-store', keepalive: true }).catch(() => {});
+  }, 5 * 60 * 1000);
   socket.on('toast', (msg) => toast(msg));
   socket.on('kicked', () => {
     sessionStorage.removeItem('roomCode');
