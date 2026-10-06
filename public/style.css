@@ -154,7 +154,8 @@ textarea { width: 100%; resize: vertical; font-size: 1.05rem; }
 .entry .grid .sub img { max-height: 300px; }
 .muted.small { font-size: .85rem; }
 .results-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
-.results-nav { display: flex; justify-content: center; }
+.results-nav { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.results-exit { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
 #resultsHostNav { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
 
 .toast {

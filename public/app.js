@@ -714,10 +714,16 @@
     $('prevBtn').disabled = r.chain === 0 && r.step <= 1;
     $('nextBtn').hidden = atEnd;
     $('restartBtn').hidden = !atEnd;
+    // Host albümlerin sonunu beklemeden herkesi lobiye döndürebilir
+    $('lobbyBtn').hidden = !isHost || atEnd;
   }
   $('nextBtn').onclick = () => socket.emit('results:nav', { dir: 'next' });
   $('prevBtn').onclick = () => socket.emit('results:nav', { dir: 'prev' });
   $('restartBtn').onclick = () => socket.emit('game:restart');
+  $('lobbyBtn').onclick = () => {
+    if (confirm('End the reveal and bring everyone back to the lobby?')) socket.emit('game:restart');
+  };
+  $('leaveBtn2').onclick = leaveRoom;
   document.addEventListener('keydown', (e) => {
     if (!state || state.phase !== 'results' || state.hostId !== state.you) return;
     if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); $('nextBtn').hidden ? null : $('nextBtn').click(); }
