@@ -65,12 +65,13 @@ function createRoom(hostId) {
     hostId,
     players: new Map(), // playerId -> { id, name, color, socketId, connected }
     phase: 'lobby',     // lobby | playing | results
-    settings: { writeTime: 60, drawTime: 90 },
+    settings: { writeTime: 60, drawTime: 90, albums: 0 }, // albums: 0 = herkesin albümü olur
     colorSeq: 0,
     round: 0,
     totalRounds: 0,
     order: [],          // oyuna başlayan oyuncuların id sırası
-    chains: [],         // { ownerId, entries: [{ type, authorId, content }] }
+    albums: [],         // { ownerId, opening, lanes: [laneIndex] } — opening: sahibin açılış cümlesi
+    lanes: [],          // { album, entries: [{ type, authorId, content }] } — tur r>=1 girdisi entries[r-1]
     submissions: new Map(),
     roundEndsAt: 0,
     timer: null,
@@ -97,10 +98,45 @@ function roundType(round) {
   return round % 2 === 0 ? 'text' : 'draw';
 }
 
-function chainIndexFor(room, playerId, round) {
+// Tur r >= 1: oyuncu i, şerit (i - r) üzerinde çalışır; o şeridin önceki girdisi hep başka bir oyuncudandır.
+function laneIndexFor(room, playerId, round) {
   const i = room.order.indexOf(playerId);
   if (i < 0) return -1;
-  return (i + round) % room.order.length;
+  const n = room.order.length;
+  return (((i - round) % n) + n) % n;
+}
+
+function albumOwnedBy(room, playerId) {
+  return room.albums.findIndex((a) => a.ownerId === playerId);
+}
+
+// Rastgele K albüm sahibi seç; 1. turda kimse kendi açılış cümlesini çizmesin
+function assignAlbums(room, k) {
+  const n = room.order.length;
+  const laneAlbum = (lane) => lane % k;
+  let best = null;
+  for (let attempt = 0; attempt < 200; attempt++) {
+    const idx = room.order.map((_, i) => i);
+    for (let i = idx.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [idx[i], idx[j]] = [idx[j], idx[i]]; }
+    const owners = idx.slice(0, k);
+    const conflicts = owners.filter((pi, a) => laneAlbum(((pi - 1) % n + n) % n) === a).length;
+    if (best === null || conflicts < best.conflicts) best = { owners, conflicts };
+    if (conflicts === 0) break;
+  }
+  room.albums = best.owners.map((pi, a) => ({ ownerId: room.order[pi], opening: null, lanes: [] }));
+  room.lanes = room.order.map((_, lane) => ({ album: laneAlbum(lane), entries: [] }));
+  room.lanes.forEach((l, lane) => room.albums[l.album].lanes.push(lane));
+}
+
+function albumCountFor(room, n) {
+  const k = room.settings.albums > 0 ? Math.min(room.settings.albums, n) : n;
+  return Math.max(MIN_PLAYERS, Math.min(k, n));
+}
+
+// Bu turda görevi olan oyuncular: 0. turda yalnızca albüm sahipleri, sonra herkes
+function activeIds(room) {
+  if (room.round === 0) return room.albums.map((a) => a.ownerId);
+  return room.order;
 }
 
 function nameOf(room, playerId) {
@@ -119,18 +155,24 @@ function playerList(room) {
 }
 
 function serializeAlbum(room, index) {
-  const c = room.chains[index];
-  if (!c) return null;
+  const a = room.albums[index];
+  if (!a) return null;
+  const entry = (e) => ({
+    type: e.type,
+    author: nameOf(room, e.authorId),
+    authorColor: room.players.get(e.authorId)?.color,
+    content: e.content,
+  });
+  const steps = [[entry({ type: 'text', authorId: a.ownerId, content: a.opening })]];
+  const done = Math.max(...a.lanes.map((l) => room.lanes[l].entries.length), 0);
+  for (let s = 0; s < done; s++) {
+    steps.push(a.lanes.map((l) => room.lanes[l].entries[s]).filter(Boolean).map(entry));
+  }
   return {
     index,
-    owner: nameOf(room, c.ownerId),
-    ownerColor: room.players.get(c.ownerId)?.color,
-    entries: c.entries.map((e) => ({
-      type: e.type,
-      author: nameOf(room, e.authorId),
-      authorColor: room.players.get(e.authorId)?.color,
-      content: e.content,
-    })),
+    owner: nameOf(room, a.ownerId),
+    ownerColor: room.players.get(a.ownerId)?.color,
+    steps,
   };
 }
 
@@ -156,20 +198,34 @@ function stateFor(room, playerId, { withTask = false } = {}) {
   };
 
   if (room.phase === 'playing') {
-    const ci = chainIndexFor(room, playerId, room.round);
-    if (ci < 0) {
+    base.active = activeIds(room);
+    const inGame = room.order.includes(playerId);
+    if (!inGame) {
       base.task = { spectator: true };
+    } else if (room.round === 0) {
+      const ai = albumOwnedBy(room, playerId);
+      if (ai < 0) {
+        // Açılış turu: albüm sahipleri yazarken diğerleri bekler, 2. turdan itibaren herkes oynar
+        base.task = { spectator: false, idle: true, type: 'text', submitted: false, openers: room.albums.length };
+      } else {
+        base.task = { spectator: false, type: 'text', chainOwner: nameOf(room, playerId), submitted: room.submissions.has(playerId) };
+        if (withTask) base.task.prev = null;
+      }
     } else {
-      const chain = room.chains[ci];
+      const li = laneIndexFor(room, playerId, room.round);
+      const lane = room.lanes[li];
+      const album = room.albums[lane.album];
       base.task = {
         spectator: false,
         type: roundType(room.round),
-        chainOwner: nameOf(room, chain.ownerId),
+        chainOwner: nameOf(room, album.ownerId),
         submitted: room.submissions.has(playerId),
       };
       // Önceki adımın içeriği (çizim verisi büyük olabilir) yalnızca tur başında / katılımda gönderilir
       if (withTask) {
-        const prev = chain.entries[chain.entries.length - 1] || null;
+        const prev = room.round === 1
+          ? { type: 'text', authorId: album.ownerId, content: album.opening }
+          : lane.entries[room.round - 2] || null;
         base.task.prev = prev
           ? { type: prev.type, author: nameOf(room, prev.authorId), content: prev.content }
           : null;
@@ -179,7 +235,7 @@ function stateFor(room, playerId, { withTask = false } = {}) {
 
   if (room.phase === 'results') {
     base.reveal = room.reveal;
-    base.albumCount = room.chains.length;
+    base.albumCount = room.albums.length;
   }
 
   return base;
@@ -194,8 +250,9 @@ function broadcast(room, opts) {
 function startGame(room) {
   room.order = connectedPlayers(room).map((p) => p.id);
   const n = room.order.length;
-  room.totalRounds = n;
-  room.chains = room.order.map((id) => ({ ownerId: id, entries: [] }));
+  const k = albumCountFor(room, n);
+  assignAlbums(room, k);
+  room.totalRounds = k; // her albümde k adım: açılış cümlesi + (k - 1) tur
   room.round = 0;
   room.phase = 'playing';
   stats.games++;
@@ -217,13 +274,20 @@ function finishRound(room) {
   clearTimeout(room.timer);
   room.timer = null;
   const type = roundType(room.round);
-  for (const pid of room.order) {
-    const ci = chainIndexFor(room, pid, room.round);
-    let content = room.submissions.get(pid);
-    if (content == null) content = type === 'text' ? '' : null;
-    if (type === 'draw' && content) stats.drawings++;
-    if (type === 'text' && content) stats.sentences++;
-    room.chains[ci].entries.push({ type, authorId: pid, content });
+  if (room.round === 0) {
+    for (const a of room.albums) {
+      a.opening = room.submissions.get(a.ownerId) || '';
+      if (a.opening) stats.sentences++;
+    }
+  } else {
+    for (const pid of room.order) {
+      const li = laneIndexFor(room, pid, room.round);
+      let content = room.submissions.get(pid);
+      if (content == null) content = type === 'text' ? '' : null;
+      if (type === 'draw' && content) stats.drawings++;
+      if (type === 'text' && content) stats.sentences++;
+      room.lanes[li].entries[room.round - 1] = { type, authorId: pid, content };
+    }
   }
   broadcastStats();
   room.round++;
@@ -240,7 +304,7 @@ function finishRound(room) {
 }
 
 function maybeFinishEarly(room) {
-  const waiting = room.order.filter((pid) => {
+  const waiting = activeIds(room).filter((pid) => {
     const p = room.players.get(pid);
     return p && p.connected && !room.submissions.has(pid);
   });
@@ -322,6 +386,7 @@ io.on('connection', (socket) => {
     if (!isHost(room) || room.phase !== 'lobby') return;
     room.settings.writeTime = clampInt(settings.writeTime, 15, 300, room.settings.writeTime);
     room.settings.drawTime = clampInt(settings.drawTime, 20, 600, room.settings.drawTime);
+    room.settings.albums = clampInt(settings.albums, 0, MAX_PLAYERS, room.settings.albums);
     broadcast(room);
   });
 
@@ -338,7 +403,7 @@ io.on('connection', (socket) => {
     const room = getRoom();
     if (!room || room.phase !== 'playing') return cb({ error: 'No active round' });
     const pid = socket.data.playerId;
-    if (!room.order.includes(pid)) return cb({ error: 'You are not in this game' });
+    if (!activeIds(room).includes(pid)) return cb({ error: 'You have no task in this round' });
     if (room.submissions.has(pid)) return cb({ ok: true });
     const type = roundType(room.round);
     const clean = validateContent(type, content);
@@ -354,13 +419,13 @@ io.on('connection', (socket) => {
     if (!isHost(room) || room.phase !== 'results') return;
     const r = room.reveal;
     const before = r.chain;
-    const len = room.chains[r.chain]?.entries.length || 0;
+    const len = room.totalRounds;
     if (dir === 'next') {
       if (r.step < len) r.step++;
-      else if (r.chain < room.chains.length - 1) { r.chain++; r.step = 1; }
+      else if (r.chain < room.albums.length - 1) { r.chain++; r.step = 1; }
     } else if (dir === 'prev') {
       if (r.step > 1) r.step--;
-      else if (r.chain > 0) { r.chain--; r.step = room.chains[r.chain].entries.length; }
+      else if (r.chain > 0) { r.chain--; r.step = len; }
     }
     if (r.chain !== before) sendAlbum(room, io.to(room.code));
     io.to(room.code).emit('results:reveal', r);
@@ -377,7 +442,8 @@ io.on('connection', (socket) => {
     room.round = 0;
     room.totalRounds = 0;
     room.order = [];
-    room.chains = [];
+    room.albums = [];
+    room.lanes = [];
     room.submissions = new Map();
     room.roundEndsAt = 0;
     room.reveal = { chain: 0, step: 1 };

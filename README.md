@@ -5,7 +5,10 @@ bir sonraki çizimi tarif eder... Turlar bitince her "albüm" adım adım açıl
 gittiği görülür.
 
 - Kurulum gerektirmez: linki paylaş, herkes adını yazıp katılsın.
-- 2–45 oyuncu. Tur sayısı = oyuncu sayısı.
+- 2–45 oyuncu. Varsayılanda herkesin bir albümü olur ve tur sayısı = oyuncu sayısı.
+- Kalabalık gruplar için ev sahibi **albüm sayısını** düşürebilir (örn. 30 kişi, 8 albüm): rastgele seçilen
+  8 kişi açılış cümlesini yazar, 2. turdan itibaren herkes her tur çizer/tarif eder, oyun 8 tur sürer ve her
+  albüm adımında birden fazla çizim yan yana görünür.
 - Yazma / çizim süreleri ev sahibi tarafından ayarlanır.
 - Fırça, silgi, doldurma, geri al, 16 renk. Mobilde de çalışır.
 - Sayfa yenilense bile oyuncu aynı odaya geri döner.
@@ -31,6 +34,8 @@ sürekli çalışan tek bir Node süreci gerekir. Ücretsiz/ucuz seçenekler:
 1. https://render.com → **New +** → **Web Service** → bu GitHub reposunu seç.
 2. Ayarları `render.yaml` dosyasından otomatik alır (Node, `npm ci`, `node server.js`).
 3. Birkaç dakikada `https://<isim>.onrender.com` adresi hazır olur.
+
+Canlı örnek: https://gartic-clone-5ynb.onrender.com/
 
 Not: Ücretsiz planda 15 dk hareketsizlikten sonra uyur, ilk açılış ~30 sn sürer.
 

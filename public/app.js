@@ -255,11 +255,21 @@
       list.appendChild(li);
     }
     $('playerCount').textContent = `(${s.players.length})`;
+    const n = s.players.length;
+    const plan = (() => {
+      const k = Math.max(s.minPlayers, Math.min(s.settings.albums > 0 ? s.settings.albums : n, Math.max(n, s.minPlayers)));
+      return { albums: k, rounds: k, perStep: Math.max(1, Math.round(n / k)) };
+    })();
+    $('lobbyPlan').textContent = n >= s.minPlayers ? `${plan.albums} albums · ${plan.rounds} rounds` : '';
     $('hostPanel').hidden = !isHost;
     $('waitHost').hidden = isHost;
     if (isHost) {
       if (document.activeElement !== $('writeTime')) $('writeTime').value = s.settings.writeTime;
       if (document.activeElement !== $('drawTime')) $('drawTime').value = s.settings.drawTime;
+      if (document.activeElement !== $('albumsInput')) $('albumsInput').value = s.settings.albums || 0;
+      $('albumsHint').textContent = s.settings.albums > 0
+        ? `${s.settings.albums} random players write an opening sentence; from round 2 everyone draws or describes every round. The game lasts ${s.settings.albums} rounds${n > plan.albums ? ` and each album collects ~${plan.perStep} entries per step` : ''}.`
+        : 'Everyone gets an album and the game lasts one round per player. Set a smaller number to keep big groups short.';
       $('startBtn').disabled = s.players.length < s.minPlayers;
       $('startBtn').textContent = s.players.length < s.minPlayers
         ? `At least ${s.minPlayers} players needed`
@@ -268,10 +278,11 @@
   }
 
   function pushSettings() {
-    socket.emit('room:settings', { writeTime: $('writeTime').value, drawTime: $('drawTime').value });
+    socket.emit('room:settings', { writeTime: $('writeTime').value, drawTime: $('drawTime').value, albums: $('albumsInput').value });
   }
   $('writeTime').addEventListener('change', pushSettings);
   $('drawTime').addEventListener('change', pushSettings);
+  $('albumsInput').addEventListener('change', pushSettings);
   $('startBtn').onclick = () => socket.emit('game:start');
 
   // ---------- Oyun ----------
@@ -284,29 +295,27 @@
 
     const typeLabel = s.round === 0 ? 'Write a sentence' : t.type === 'draw' ? 'Draw' : 'Describe';
     $('roundLabel').textContent = `Round ${s.round + 1} / ${s.totalRounds}`;
-    $('taskLabel').textContent = t.spectator ? 'Spectating' : `${typeLabel} · ${t.chainOwner}'s album`;
+    $('taskLabel').textContent = t.spectator ? 'Spectating' : t.idle ? 'Waiting for the opening sentences' : `${typeLabel} · ${t.chainOwner}'s album`;
 
     $('textPhase').hidden = true;
     $('drawPhase').hidden = true;
     $('waitPhase').hidden = true;
     $('spectatorPhase').hidden = true;
+    $('idlePhase').hidden = true;
 
     if (t.spectator) { $('spectatorPhase').hidden = false; startTimer(); return; }
 
+    if (t.idle) {
+      $('idlePhase').hidden = false;
+      $('idleText').textContent = `${t.openers} randomly chosen players are writing the opening sentences. You join in from round 2, you'll draw or describe every round after this.`;
+      renderWaitList($('idlePlayers'));
+      startTimer();
+      return;
+    }
+
     if (t.submitted) {
       $('waitPhase').hidden = false;
-      const list = $('waitPlayers');
-      list.innerHTML = '';
-      for (const p of s.players.filter((x) => x.inGame)) {
-        const li = document.createElement('li');
-        if (!p.connected) li.classList.add('offline');
-        if (s.submitted.includes(p.id)) li.classList.add('done');
-        li.appendChild(avatar(p));
-        const n = document.createElement('span'); n.textContent = p.name; li.appendChild(n);
-        const st = document.createElement('span'); st.className = 'tag'; st.style.background = s.submitted.includes(p.id) ? '#3cb44b' : '#bbb';
-        st.textContent = s.submitted.includes(p.id) ? '✔' : '…'; li.appendChild(st);
-        list.appendChild(li);
-      }
+      renderWaitList($('waitPlayers'));
       stopTimer();
       return;
     }
@@ -333,6 +342,23 @@
       fitCanvas();
     }
     startTimer();
+  }
+
+  // Bu turda görevi olan oyuncular ve gönderim durumları
+  function renderWaitList(list) {
+    const s = state;
+    const active = s.active || s.players.filter((x) => x.inGame).map((x) => x.id);
+    list.innerHTML = '';
+    for (const p of s.players.filter((x) => active.includes(x.id))) {
+      const li = document.createElement('li');
+      if (!p.connected) li.classList.add('offline');
+      if (s.submitted.includes(p.id)) li.classList.add('done');
+      li.appendChild(avatar(p));
+      const n = document.createElement('span'); n.textContent = p.name; li.appendChild(n);
+      const st = document.createElement('span'); st.className = 'tag'; st.style.background = s.submitted.includes(p.id) ? '#3cb44b' : '#bbb';
+      st.textContent = s.submitted.includes(p.id) ? '✔' : '…'; li.appendChild(st);
+      list.appendChild(li);
+    }
   }
 
   function blankImage() {
@@ -371,7 +397,7 @@
   $('drawSubmit').onclick = submitDraw;
 
   function autoSubmit() {
-    if (autoSubmitted || !state || state.phase !== 'playing' || state.task.spectator || state.task.submitted) return;
+    if (autoSubmitted || !state || state.phase !== 'playing' || state.task.spectator || state.task.idle || state.task.submitted) return;
     autoSubmitted = true;
     if (state.task.type === 'text') submitText(true); else submitDraw();
     toast('Time is up, submitted ⏰');
@@ -390,7 +416,7 @@
       $('timerText').textContent = Math.ceil(remain / 1000) + 's';
       const urgent = remain > 0 && remain <= 5000;
       $('timerText').classList.toggle('urgent', urgent);
-      if (urgent && !alarmed && !state.task.spectator && !state.task.submitted) { alarmed = true; playAlarm(); }
+      if (urgent && !alarmed && !state.task.spectator && !state.task.idle && !state.task.submitted) { alarmed = true; playAlarm(); }
       if (remain <= 0) autoSubmit();
     };
     tick();
@@ -634,36 +660,57 @@
     if (wrap.dataset.chain !== key) { wrap.innerHTML = ''; wrap.dataset.chain = key; }
     // Eksik kartları ekle, fazla olanları kaldır
     while (wrap.children.length > r.step) wrap.lastChild.remove();
-    for (let i = wrap.children.length; i < r.step; i++) {
-      const e = chain.entries[i];
-      if (!e) break;
-      const card = document.createElement('div');
-      card.className = 'entry';
-      const who = document.createElement('div');
-      who.className = 'who';
-      who.appendChild(avatar({ name: e.author, color: e.authorColor }));
-      const nm = document.createElement('span');
-      nm.textContent = e.type === 'text' ? (i === 0 ? `${e.author} wrote:` : `${e.author} described:`) : `${e.author} drew:`;
-      who.appendChild(nm);
-      const st = document.createElement('span'); st.className = 'step'; st.textContent = `${i + 1}/${chain.entries.length}`;
-      who.appendChild(st);
-      card.appendChild(who);
+    const totalSteps = s.totalRounds || chain.steps.length;
+    const verb = (e, i) => e.type === 'text' ? (i === 0 ? 'wrote' : 'described') : 'drew';
+    const content = (e) => {
       if (e.type === 'text') {
         const t = document.createElement('div');
         t.className = 'text' + (e.content ? '' : ' empty');
         t.textContent = e.content || '(time ran out, nothing written)';
-        card.appendChild(t);
+        return t;
+      }
+      const img = document.createElement('img');
+      img.src = e.content || blankImage();
+      img.alt = 'Drawing';
+      return img;
+    };
+    for (let i = wrap.children.length; i < r.step; i++) {
+      const step = chain.steps[i];
+      if (!step || !step.length) break;
+      const card = document.createElement('div');
+      card.className = 'entry';
+      const who = document.createElement('div');
+      who.className = 'who';
+      if (step.length === 1) {
+        const e = step[0];
+        who.appendChild(avatar({ name: e.author, color: e.authorColor }));
+        const nm = document.createElement('span'); nm.textContent = `${e.author} ${verb(e, i)}:`; who.appendChild(nm);
       } else {
-        const img = document.createElement('img');
-        img.src = e.content || blankImage();
-        img.alt = 'Drawing';
-        card.appendChild(img);
+        const nm = document.createElement('span'); nm.textContent = `${step.length} people ${verb(step[0], i)}:`; who.appendChild(nm);
+      }
+      const st = document.createElement('span'); st.className = 'step'; st.textContent = `${i + 1}/${totalSteps}`;
+      who.appendChild(st);
+      card.appendChild(who);
+      if (step.length === 1) {
+        card.appendChild(content(step[0]));
+      } else {
+        const grid = document.createElement('div'); grid.className = 'grid';
+        for (const e of step) {
+          const sub = document.createElement('div'); sub.className = 'sub';
+          const w = document.createElement('div'); w.className = 'who';
+          w.appendChild(avatar({ name: e.author, color: e.authorColor }));
+          const nm = document.createElement('span'); nm.textContent = e.author; w.appendChild(nm);
+          sub.appendChild(w);
+          sub.appendChild(content(e));
+          grid.appendChild(sub);
+        }
+        card.appendChild(grid);
       }
       wrap.appendChild(card);
       card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
 
-    const atEnd = r.chain === s.albumCount - 1 && r.step >= chain.entries.length;
+    const atEnd = r.chain === s.albumCount - 1 && r.step >= totalSteps;
     $('prevBtn').disabled = r.chain === 0 && r.step <= 1;
     $('nextBtn').hidden = atEnd;
     $('restartBtn').hidden = !atEnd;

@@ -146,6 +146,13 @@ textarea { width: 100%; resize: vertical; font-size: 1.05rem; }
 .entry .text { font-size: 1.3rem; }
 .entry .text.empty { color: var(--muted); font-style: italic; font-size: 1rem; }
 .entry img { max-width: 100%; max-height: 480px; border: 2px solid var(--border); border-radius: 10px; background: #fff; display: block; }
+/* Aynı adımda birden fazla kişi çalıştıysa (albüm sayısı < oyuncu sayısı) girdiler ızgarada */
+.entry .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
+.entry .grid .sub { background: var(--bg, #f6f5ff); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; }
+.entry .grid .sub .who { font-size: .9rem; margin-bottom: 6px; }
+.entry .grid .sub .text { font-size: 1.1rem; }
+.entry .grid .sub img { max-height: 300px; }
+.muted.small { font-size: .85rem; }
 .results-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
 .results-nav { display: flex; justify-content: center; }
 #resultsHostNav { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
