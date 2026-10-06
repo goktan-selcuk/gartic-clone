@@ -14,6 +14,11 @@ const MAX_PLAYERS = 45;
 const app = express();
 app.use(express.static(path.join(__dirname, 'public')));
 app.get('/health', (_req, res) => res.send('ok'));
+app.get('/dashboard', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'dashboard.html')));
+app.get('/api/metrics', (_req, res) => {
+  res.set('Cache-Control', 'no-store');
+  res.json(metricsSnapshot());
+});
 
 const server = http.createServer(app);
 const io = new Server(server, { maxHttpBufferSize: 5e6 });
@@ -58,6 +63,65 @@ function titledName(name) {
 // Sunucu açıldığından beri: sayaçlar (bellekte, yeniden başlayınca sıfırlanır)
 const stats = { drawings: 0, sentences: 0, games: 0, since: Date.now() };
 function broadcastStats() { io.emit('stats', stats); }
+
+// ---------- Trafik metrikleri (/dashboard ve /api/metrics) ----------
+// Her şey bellekte tutulur: sunucu yeniden başlayınca sıfırlanır. Kişisel veri (IP vb.) tutulmaz.
+const HOUR_MS = 3600 * 1000;
+const METRICS_KEEP_HOURS = 24 * 7;
+const metrics = {
+  since: Date.now(),
+  totals: { connections: 0, joins: 0, roomsCreated: 0, gamesStarted: 0, gamesFinished: 0, gamesAbandoned: 0, submissions: 0, kicks: 0 },
+  uniquePlayers: new Set(),
+  peak: { online: 0, at: null, inRooms: 0, inRoomsAt: null },
+  hourly: new Map(), // hourStart -> { connections, joins, rooms, games, players: Set }
+  games: [],         // son 100 oyun
+  events: [],        // son 100 olay
+};
+function hourBucket() {
+  const key = Math.floor(Date.now() / HOUR_MS) * HOUR_MS;
+  let b = metrics.hourly.get(key);
+  if (!b) {
+    b = { connections: 0, joins: 0, rooms: 0, games: 0, players: new Set() };
+    metrics.hourly.set(key, b);
+    for (const k of metrics.hourly.keys()) if (key - k > METRICS_KEEP_HOURS * HOUR_MS) metrics.hourly.delete(k);
+  }
+  return b;
+}
+function logEvent(type, text) {
+  metrics.events.push({ t: Date.now(), type, text });
+  if (metrics.events.length > 100) metrics.events.shift();
+}
+function playersInRooms() {
+  let n = 0;
+  for (const r of rooms.values()) n += connectedPlayers(r).length;
+  return n;
+}
+function trackPresence() {
+  const online = io.engine.clientsCount;
+  if (online > metrics.peak.online) { metrics.peak.online = online; metrics.peak.at = Date.now(); }
+  const inRooms = playersInRooms();
+  if (inRooms > metrics.peak.inRooms) { metrics.peak.inRooms = inRooms; metrics.peak.inRoomsAt = Date.now(); }
+}
+function metricsSnapshot() {
+  const byPhase = { lobby: 0, playing: 0, results: 0 };
+  const activeRooms = [];
+  for (const r of rooms.values()) {
+    byPhase[r.phase]++;
+    const players = connectedPlayers(r).length;
+    if (players > 0) activeRooms.push({ code: r.code, phase: r.phase, players, total: r.players.size, round: r.round, totalRounds: r.totalRounds, albums: r.albums.length });
+  }
+  return {
+    now: Date.now(),
+    since: metrics.since,
+    current: { online: io.engine.clientsCount, inRooms: playersInRooms(), rooms: rooms.size, byPhase, activeRooms },
+    totals: { ...metrics.totals, uniquePlayers: metrics.uniquePlayers.size, drawings: stats.drawings, sentences: stats.sentences },
+    peak: metrics.peak,
+    hourly: [...metrics.hourly.entries()].sort((a, b) => a[0] - b[0])
+      .map(([hour, b]) => ({ hour, connections: b.connections, joins: b.joins, rooms: b.rooms, games: b.games, players: b.players.size })),
+    games: metrics.games.slice().reverse(),
+    events: metrics.events.slice().reverse(),
+  };
+}
 
 function createRoom(hostId) {
   const room = {
@@ -256,6 +320,12 @@ function startGame(room) {
   room.round = 0;
   room.phase = 'playing';
   stats.games++;
+  metrics.totals.gamesStarted++;
+  hourBucket().games++;
+  room.gameRecord = { code: room.code, startedAt: Date.now(), finishedAt: null, players: n, albums: k, rounds: k, durationMs: null, status: 'playing' };
+  metrics.games.push(room.gameRecord);
+  if (metrics.games.length > 100) metrics.games.shift();
+  logEvent('game', `Game started in ${room.code}: ${n} players, ${k} albums`);
   beginRound(room);
 }
 
@@ -293,6 +363,14 @@ function finishRound(room) {
   room.round++;
   if (room.round >= room.totalRounds) {
     room.phase = 'results';
+    if (room.gameRecord) {
+      room.gameRecord.finishedAt = Date.now();
+      room.gameRecord.durationMs = room.gameRecord.finishedAt - room.gameRecord.startedAt;
+      room.gameRecord.status = 'finished';
+      room.gameRecord = null;
+      metrics.totals.gamesFinished++;
+      logEvent('game', `Game finished in ${room.code}`);
+    }
     room.roundEndsAt = 0;
     room.submissions = new Map();
     room.reveal = { chain: 0, step: 1 };
@@ -334,12 +412,18 @@ function validateContent(type, content) {
 
 io.on('connection', (socket) => {
   socket.emit('stats', stats);
+  metrics.totals.connections++;
+  hourBucket().connections++;
+  trackPresence();
   const getRoom = () => (socket.data.code ? rooms.get(socket.data.code) : null);
   const isHost = (room) => room && room.hostId === socket.data.playerId;
 
   socket.on('room:create', ({ name, playerId } = {}, cb = () => {}) => {
     if (!playerId) return cb({ error: 'Missing player id' });
     const room = createRoom(playerId);
+    metrics.totals.roomsCreated++;
+    hourBucket().rooms++;
+    logEvent('room', `Room ${room.code} created`);
     joinRoom(room, cleanName(name), playerId, cb);
   });
 
@@ -366,12 +450,17 @@ io.on('connection', (socket) => {
         socketId: socket.id,
         connected: true,
       });
+      metrics.totals.joins++;
+      metrics.uniquePlayers.add(playerId);
+      const b = hourBucket(); b.joins++; b.players.add(playerId);
+      logEvent('join', `${name} joined ${room.code} (${room.players.size} players)`);
     }
     socket.data.code = room.code;
     socket.data.playerId = playerId;
     socket.join(room.code);
     transferHostIfNeeded(room);
     touchEmpty(room);
+    trackPresence();
     cb({ ok: true, code: room.code });
     // Katılan kişiye tam durum (sonuç aşamasındaysa zincirlerle birlikte), diğerlerine güncelleme
     io.to(socket.id).emit('room:state', stateFor(room, playerId, { withTask: true }));
@@ -409,6 +498,7 @@ io.on('connection', (socket) => {
     const clean = validateContent(type, content);
     if (type === 'draw' && clean == null) return cb({ error: 'Could not read the drawing' });
     room.submissions.set(pid, clean);
+    metrics.totals.submissions++;
     cb({ ok: true });
     broadcast(room);
     maybeFinishEarly(room);
@@ -457,6 +547,8 @@ io.on('connection', (socket) => {
     const target = room.players.get(playerId);
     if (!target || playerId === room.hostId) return;
     room.players.delete(playerId);
+    metrics.totals.kicks++;
+    logEvent('kick', `${target.name} was removed from ${room.code}`);
     if (target.socketId) {
       io.to(target.socketId).emit('kicked');
       io.sockets.sockets.get(target.socketId)?.leave(room.code);
@@ -487,6 +579,8 @@ setInterval(() => {
   for (const [code, room] of rooms) {
     if (room.emptySince && now - room.emptySince > ROOM_IDLE_MS) {
       clearTimeout(room.timer);
+      if (room.gameRecord) { room.gameRecord.status = 'abandoned'; metrics.totals.gamesAbandoned++; }
+      logEvent('room', `Room ${code} removed (idle)`);
       rooms.delete(code);
     }
   }

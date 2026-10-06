@@ -13,6 +13,8 @@ gittiği görülür.
 - Fırça, silgi, doldurma, geri al, 16 renk. Mobilde de çalışır.
 - Sayfa yenilense bile oyuncu aynı odaya geri döner.
 - Her şey bellekte tutulur; sunucu yeniden başlarsa odalar silinir (geçici kullanım için tasarlandı).
+- Trafik paneli: `/dashboard` (anlık çevrimiçi, odalar, oyunlar, saatlik grafik; ham veri `/api/metrics`).
+  Sayaçlar bellekte tutulur, sunucu yeniden başlayınca sıfırlanır. IP veya kişisel veri saklanmaz.
 
 ## Yerelde çalıştırma
 

@@ -1,0 +1,275 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>Sketch Phone · Traffic</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --surface: #fcfcfb; --card: #ffffff; --border: #e6e5e1; --grid: #ebeae6;
+      --text: #0b0b0b; --text-2: #52514e; --muted: #8a8984;
+      --series: #2a78d6; --series-hover: #1c5cab;
+      --ok: #008300; --warn: #c98500; --bad: #e34948;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme="light"]) {
+        color-scheme: dark;
+        --surface: #1a1a19; --card: #232322; --border: #35352f; --grid: #2e2e2b;
+        --text: #ffffff; --text-2: #c3c2b7; --muted: #8c8b83;
+        --series: #3987e5; --series-hover: #6da7ec;
+      }
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--surface); color: var(--text); font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding-block: 24px; padding-inline: 20px; }
+    .wrap { max-width: 1100px; margin: 0 auto; }
+    header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 18px; }
+    h1 { font-size: 1.3rem; margin: 0; }
+    h2 { font-size: 1rem; margin: 22px 0 10px; color: var(--text-2); font-weight: 600; }
+    .sub { color: var(--muted); font-size: .85rem; }
+    .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+    .tile { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; }
+    .tile .label { color: var(--text-2); font-size: .8rem; }
+    .tile .value { font-size: 1.6rem; font-weight: 600; margin-top: 2px; font-variant-numeric: tabular-nums; }
+    .tile .note { color: var(--muted); font-size: .75rem; margin-top: 2px; min-height: 1em; }
+    .tile.live .value::before { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--ok); margin-right: 8px; vertical-align: middle; }
+    .filters { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 0 0 10px; }
+    .filters select, .filters button { font: inherit; padding: 6px 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--card); color: var(--text); }
+    .filters button.on { border-color: var(--series); color: var(--series); font-weight: 600; }
+    .chart { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 14px 14px 8px; position: relative; }
+    .chart svg { width: 100%; height: 240px; display: block; }
+    .chart .bar { fill: var(--series); }
+    .chart .hit { fill: transparent; cursor: default; }
+    .chart .hit:hover + .bar, .chart .hit:focus + .bar { fill: var(--series-hover); }
+    .chart .grid { stroke: var(--grid); stroke-width: 1; }
+    .chart .axis { stroke: var(--border); stroke-width: 1; }
+    .chart text { fill: var(--text-2); font-size: 11px; }
+    .tip { position: absolute; pointer-events: none; background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 6px 10px; box-shadow: 0 4px 14px rgba(0,0,0,.12); font-size: .8rem; display: none; z-index: 2; }
+    .tip strong { font-size: 1rem; display: block; }
+    table { width: 100%; border-collapse: collapse; background: var(--card); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+    th, td { text-align: left; padding: 8px 12px; border-top: 1px solid var(--border); font-variant-numeric: tabular-nums; }
+    th { color: var(--text-2); font-weight: 600; font-size: .8rem; border-top: 0; }
+    .tablewrap { overflow-x: auto; }
+    .empty { color: var(--muted); padding: 12px; }
+    .badge { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: .75rem; border: 1px solid var(--border); color: var(--text-2); }
+    .badge.playing { color: var(--series); border-color: var(--series); }
+    .badge.finished { color: var(--ok); border-color: var(--ok); }
+    .badge.abandoned { color: var(--bad); border-color: var(--bad); }
+    .log { list-style: none; margin: 0; padding: 0; background: var(--card); border: 1px solid var(--border); border-radius: 10px; }
+    .log li { padding: 7px 12px; border-top: 1px solid var(--border); display: flex; gap: 12px; }
+    .log li:first-child { border-top: 0; }
+    .log time { color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; }
+    footer { color: var(--muted); font-size: .8rem; margin-top: 24px; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>🎨 Sketch Phone · Traffic</h1>
+    <div class="sub">Counting since <span id="since">…</span> · refreshes every 10s · <span id="updated"></span></div>
+  </header>
+
+  <h2>Right now</h2>
+  <div class="tiles">
+    <div class="tile live"><div class="label">Online sockets</div><div class="value" id="online">–</div><div class="note">peak <span id="peakOnline">–</span></div></div>
+    <div class="tile"><div class="label">Players in rooms</div><div class="value" id="inRooms">–</div><div class="note">peak <span id="peakInRooms">–</span></div></div>
+    <div class="tile"><div class="label">Active rooms</div><div class="value" id="roomsNow">–</div><div class="note" id="phases"></div></div>
+    <div class="tile"><div class="label">Games in progress</div><div class="value" id="playing">–</div><div class="note"></div></div>
+  </div>
+
+  <h2>Since the server started</h2>
+  <div class="tiles">
+    <div class="tile"><div class="label">Unique players</div><div class="value" id="uniquePlayers">–</div><div class="note">distinct browser sessions</div></div>
+    <div class="tile"><div class="label">Room joins</div><div class="value" id="joins">–</div><div class="note"></div></div>
+    <div class="tile"><div class="label">Connections</div><div class="value" id="connections">–</div><div class="note">incl. reconnects &amp; page loads</div></div>
+    <div class="tile"><div class="label">Rooms created</div><div class="value" id="roomsCreated">–</div><div class="note"></div></div>
+    <div class="tile"><div class="label">Games started</div><div class="value" id="gamesStarted">–</div><div class="note"><span id="gamesFinished">–</span> finished · <span id="gamesAbandoned">–</span> abandoned</div></div>
+    <div class="tile"><div class="label">Drawings</div><div class="value" id="drawings">–</div><div class="note"></div></div>
+    <div class="tile"><div class="label">Sentences</div><div class="value" id="sentences">–</div><div class="note"></div></div>
+    <div class="tile"><div class="label">Submissions</div><div class="value" id="submissions">–</div><div class="note"><span id="kicks">–</span> kicks</div></div>
+  </div>
+
+  <h2>Per hour</h2>
+  <div class="filters">
+    <button data-range="24" class="on">Last 24 hours</button>
+    <button data-range="168">Last 7 days</button>
+    <select id="metric">
+      <option value="players">New players</option>
+      <option value="joins">Room joins</option>
+      <option value="connections">Connections</option>
+      <option value="rooms">Rooms created</option>
+      <option value="games">Games started</option>
+    </select>
+  </div>
+  <div class="chart">
+    <svg id="svg" aria-label="Hourly bar chart"></svg>
+    <div class="tip" id="tip"></div>
+  </div>
+
+  <div class="cols">
+    <section>
+      <h2>Active rooms</h2>
+      <div class="tablewrap" id="roomsTable"></div>
+    </section>
+    <section>
+      <h2>Recent games</h2>
+      <div class="tablewrap" id="gamesTable"></div>
+    </section>
+  </div>
+
+  <h2>Recent events</h2>
+  <ul class="log" id="log"></ul>
+
+  <footer>Everything is kept in memory on the server. A restart or redeploy resets the counters. No IP addresses or personal data are stored.</footer>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = (id) => document.getElementById(id);
+  let data = null;
+  let range = 24;
+  const fmt = (n) => (n == null ? '–' : Number(n).toLocaleString('en-US'));
+  const when = (t) => (t ? new Date(t).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '–');
+  const clock = (t) => new Date(t).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  const dur = (ms) => (ms == null ? '–' : ms < 60000 ? `${Math.round(ms / 1000)}s` : `${Math.floor(ms / 60000)}m ${Math.round((ms % 60000) / 1000)}s`);
+  const text = (tag, s, cls) => { const el = document.createElement(tag); el.textContent = s; if (cls) el.className = cls; return el; };
+
+  async function load() {
+    try {
+      const r = await fetch('/api/metrics', { cache: 'no-store' });
+      data = await r.json();
+      render();
+      $('updated').textContent = 'updated ' + clock(Date.now());
+    } catch (e) {
+      $('updated').textContent = 'fetch failed, retrying…';
+    }
+  }
+
+  function render() {
+    const d = data;
+    $('since').textContent = when(d.since);
+    $('online').textContent = fmt(d.current.online);
+    $('peakOnline').textContent = `${fmt(d.peak.online)} at ${when(d.peak.at)}`;
+    $('inRooms').textContent = fmt(d.current.inRooms);
+    $('peakInRooms').textContent = `${fmt(d.peak.inRooms)} at ${when(d.peak.inRoomsAt)}`;
+    $('roomsNow').textContent = fmt(d.current.rooms);
+    const ph = d.current.byPhase;
+    $('phases').textContent = `${ph.lobby} lobby · ${ph.playing} playing · ${ph.results} results`;
+    $('playing').textContent = fmt(ph.playing);
+    for (const k of ['uniquePlayers', 'joins', 'connections', 'roomsCreated', 'gamesStarted', 'gamesFinished', 'gamesAbandoned', 'drawings', 'sentences', 'submissions', 'kicks']) $(k).textContent = fmt(d.totals[k]);
+    renderChart();
+    renderRooms();
+    renderGames();
+    renderLog();
+  }
+
+  function renderChart() {
+    const metric = $('metric').value;
+    const now = Math.floor(Date.now() / 3600000) * 3600000;
+    const byHour = new Map(data.hourly.map((h) => [h.hour, h]));
+    const hours = [];
+    for (let i = range - 1; i >= 0; i--) { const h = now - i * 3600000; hours.push({ hour: h, value: byHour.get(h)?.[metric] || 0 }); }
+    const svg = $('svg');
+    const W = Math.max(320, Math.round(svg.getBoundingClientRect().width || 1000)), H = 240, padL = 44, padR = 10, padT = 10, padB = 28;
+    svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+    const innerW = W - padL - padR, innerH = H - padT - padB;
+    const max = Math.max(1, ...hours.map((h) => h.value));
+    const step = niceStep(max);
+    const yMax = Math.ceil(max / step) * step;
+    const y = (v) => padT + innerH - (v / yMax) * innerH;
+    const slot = innerW / hours.length;
+    const barW = Math.min(24, slot - 2);
+    while (svg.firstChild) svg.removeChild(svg.firstChild);
+    const ns = 'http://www.w3.org/2000/svg';
+    const el = (tag, attrs) => { const e = document.createElementNS(ns, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); return e; };
+    for (let v = 0; v <= yMax; v += step) {
+      svg.appendChild(el('line', { x1: padL, x2: W - padR, y1: y(v), y2: y(v), class: v === 0 ? 'axis' : 'grid' }));
+      const t = el('text', { x: padL - 6, y: y(v) + 4, 'text-anchor': 'end' }); t.textContent = fmt(v); svg.appendChild(t);
+    }
+    const labelEvery = range > 24 ? 24 : slot >= 36 ? 2 : slot >= 18 ? 4 : 6;
+    hours.forEach((h, i) => {
+      const cx = padL + slot * i + slot / 2;
+      const top = y(h.value), bottom = y(0);
+      const hgt = Math.max(0, bottom - top);
+      const r = Math.min(4, hgt / 2);
+      const x0 = cx - barW / 2;
+      const hit = el('rect', { x: padL + slot * i, y: padT, width: slot, height: innerH, class: 'hit', tabindex: 0 });
+      const d = hgt > 0
+        ? `M${x0},${bottom} V${top + r} a${r},${r} 0 0 1 ${r},-${r} h${barW - 2 * r} a${r},${r} 0 0 1 ${r},${r} V${bottom} Z`
+        : `M${x0},${bottom} h${barW} v0 Z`;
+      const bar = el('path', { d, class: 'bar' });
+      const show = (ev) => {
+        const tip = $('tip');
+        tip.replaceChildren(text('strong', fmt(h.value)), text('span', `${$('metric').selectedOptions[0].textContent} · ${when(h.hour)}`));
+        tip.style.display = 'block';
+        const box = svg.getBoundingClientRect();
+        const px = (cx / W) * box.width;
+        tip.style.left = Math.min(box.width - 170, Math.max(0, px - 60)) + 'px';
+        tip.style.top = Math.max(0, (top / H) * box.height - 54) + 'px';
+      };
+      hit.addEventListener('pointermove', show); hit.addEventListener('focus', show);
+      hit.addEventListener('pointerleave', () => { $('tip').style.display = 'none'; });
+      hit.addEventListener('blur', () => { $('tip').style.display = 'none'; });
+      svg.appendChild(hit); svg.appendChild(bar);
+      if (i % labelEvery === 0 || (range <= 24 && i === hours.length - 1)) {
+        const t = el('text', { x: cx, y: H - 8, 'text-anchor': 'middle' });
+        t.textContent = range > 24
+          ? new Date(h.hour).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })
+          : new Date(h.hour).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+        svg.appendChild(t);
+      }
+    });
+  }
+  function niceStep(max) {
+    const raw = max / 4;
+    const p = Math.pow(10, Math.floor(Math.log10(raw)));
+    for (const m of [1, 2, 5, 10]) if (m * p >= raw) return m * p;
+    return 10 * p;
+  }
+
+  function table(headers, rows) {
+    const t = document.createElement('table');
+    const thead = t.createTHead().insertRow();
+    headers.forEach((h) => thead.appendChild(text('th', h)));
+    const tb = t.createTBody();
+    for (const row of rows) { const tr = tb.insertRow(); row.forEach((c) => { const td = tr.insertCell(); if (c instanceof Node) td.appendChild(c); else td.textContent = c; }); }
+    return t;
+  }
+  function badge(s) { return text('span', s, `badge ${s}`); }
+
+  function renderRooms() {
+    const wrap = $('roomsTable');
+    const rows = data.current.activeRooms.map((r) => [r.code, badge(r.phase), `${r.players} / ${r.total}`, r.phase === 'playing' ? `${r.round + 1} / ${r.totalRounds}` : (r.phase === 'results' ? `${r.albums} albums` : '–')]);
+    wrap.replaceChildren(rows.length ? table(['Room', 'Phase', 'Players', 'Progress'], rows) : text('div', 'No one is in a room right now.', 'empty'));
+  }
+  function renderGames() {
+    const wrap = $('gamesTable');
+    const rows = data.games.slice(0, 25).map((g) => [when(g.startedAt), g.code, g.players, g.albums, dur(g.durationMs ?? (g.status === 'playing' ? Date.now() - g.startedAt : null)), badge(g.status)]);
+    wrap.replaceChildren(rows.length ? table(['Started', 'Room', 'Players', 'Albums', 'Duration', 'Status'], rows) : text('div', 'No games yet.', 'empty'));
+  }
+  function renderLog() {
+    const ul = $('log');
+    ul.replaceChildren(...(data.events.length ? data.events.slice(0, 40).map((e) => {
+      const li = document.createElement('li');
+      const t = document.createElement('time'); t.textContent = clock(e.t); li.appendChild(t);
+      li.appendChild(text('span', e.text));
+      return li;
+    }) : [text('li', 'Nothing has happened yet.', 'empty')]));
+  }
+
+  for (const b of document.querySelectorAll('[data-range]')) b.onclick = () => {
+    range = parseInt(b.dataset.range, 10);
+    for (const o of document.querySelectorAll('[data-range]')) o.classList.toggle('on', o === b);
+    if (data) renderChart();
+  };
+  $('metric').onchange = () => data && renderChart();
+  window.addEventListener('resize', () => data && renderChart());
+  load();
+  setInterval(load, 10000);
+})();
+</script>
+</body>
+</html>
