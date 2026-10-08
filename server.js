@@ -217,13 +217,17 @@ function sendAlbum(room, target) {
 }
 
 // ---------- Sonuç sunumu: adımlar sunucu zamanlamasıyla kendiliğinden açılır ----------
-const REVEAL_TEXT_MS = 4000;       // bir cümlenin ekranda kalma süresi
-const REVEAL_DRAW_PAUSE_MS = 2500; // çizim bittikten sonra bekleme
+const REVEAL_DRAW_PAUSE_MS = 1500; // çizim bittikten sonra bekleme
+// Cümle: okuma hızına göre 2–3.5 sn (yaklaşık 15 karakter/sn)
+function textMsFor(content) {
+  const len = String(content || '').length;
+  return Math.max(2000, Math.min(3500, 1200 + len * 65));
+}
 function revealEntry(room) {
   const a = room.albums[room.reveal.chain];
   if (!a) return null;
   const i = room.reveal.step - 1;
-  return i === 0 ? { type: 'text' } : a.entries[i - 1] || null;
+  return i === 0 ? { type: 'text', content: a.opening } : a.entries[i - 1] || null;
 }
 function replayMsFor(e) {
   if (!e || e.type !== 'draw' || !e.strokes) return 0;
@@ -234,7 +238,7 @@ function setRevealStep(room, chain, step, auto) {
   r.chain = chain; r.step = step; r.auto = auto;
   const e = revealEntry(room);
   r.replayMs = replayMsFor(e);
-  r.stepMs = e && e.type === 'draw' ? (r.replayMs || 3000) + REVEAL_DRAW_PAUSE_MS : REVEAL_TEXT_MS;
+  r.stepMs = e && e.type === 'draw' ? (r.replayMs || 3000) + REVEAL_DRAW_PAUSE_MS : textMsFor(e && e.content);
   r.stepStartedAt = Date.now();
 }
 function emitReveal(room) {
