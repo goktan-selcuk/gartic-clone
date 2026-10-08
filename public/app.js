@@ -668,13 +668,13 @@
   });
 
   // ---------- Yeniden oynatım ----------
-  // Sanal zaman çizelgesi: uzun duraksamalar 250 ms'ye, tek bir fırça darbesi 2.5 sn'ye kısaltılır
+  // Sanal zaman çizelgesi: duraksamalar 120 ms'ye, tek bir fırça darbesi 1.5 sn'ye kısaltılır
   function timeline(ops) {
     let v = 0, prevEnd = 0;
     const items = [];
     for (const op of ops) {
-      const gap = Math.min(250, Math.max(0, (op.ts || 0) - prevEnd));
-      const dur = op.t === 'd' ? Math.max(60, Math.min(2500, op.d || 0)) : 150;
+      const gap = Math.min(120, Math.max(0, (op.ts || 0) - prevEnd));
+      const dur = op.t === 'd' ? Math.max(40, Math.min(1500, op.d || 0)) : 100;
       const vs = v + gap, ve = vs + dur;
       items.push({ op, vs, ve });
       v = ve; prevEnd = (op.ts || 0) + (op.t === 'd' ? (op.d || 0) : 0);

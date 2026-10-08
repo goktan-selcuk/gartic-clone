@@ -217,7 +217,8 @@ function sendAlbum(room, target) {
 }
 
 // ---------- Sonuç sunumu: adımlar sunucu zamanlamasıyla kendiliğinden açılır ----------
-const REVEAL_DRAW_PAUSE_MS = 1500; // çizim bittikten sonra bekleme
+const REVEAL_DRAW_PAUSE_MS = 1000; // çizim bittikten sonra bekleme
+const REPLAY_SPEED = 0.6;          // kayıt zaman çizelgesinin bu oranı kadar sürede oynatılır (hızlı sunum)
 // Cümle: okuma hızına göre 2–3.5 sn (yaklaşık 15 karakter/sn)
 function textMsFor(content) {
   const len = String(content || '').length;
@@ -231,7 +232,7 @@ function revealEntry(room) {
 }
 function replayMsFor(e) {
   if (!e || e.type !== 'draw' || !e.strokes) return 0;
-  return Math.max(1500, Math.min(12000, e.strokes.ms || 3000));
+  return Math.max(1000, Math.min(6000, (e.strokes.ms || 3000) * REPLAY_SPEED));
 }
 function setRevealStep(room, chain, step, auto) {
   const r = room.reveal;
