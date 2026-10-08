@@ -3,6 +3,7 @@
 
   // ---------- Yardımcılar ----------
   const $ = (id) => document.getElementById(id);
+  const t = (key, vars) => window.I18N.t(key, vars);
   const socket = io({ transports: ['websocket', 'polling'] });
 
   const playerId = (() => {
@@ -54,9 +55,9 @@
   async function copyText(text) {
     try {
       await navigator.clipboard.writeText(text);
-      toast('Copied 📋');
+      toast(t('toast.copied'));
     } catch {
-      prompt('Copy:', text);
+      prompt(t('toast.copyPrompt'), text);
     }
   }
 
@@ -65,12 +66,8 @@
   }
 
   // ---------- Giriş ekranı süsleri ----------
-  // Her maskotun kendi replikleri var
-  const MASCOTS = {
-    hood: ['The pencil remembers.', 'Draw... or join the army of the dead.', 'I see your drawing. I have no comment.', 'The night is dark and full of doodles.'],
-    pixel: ['PRESS START TO DRAW', 'INSERT COIN. DRAW BADLY.', 'ACHIEVEMENT: STICK FIGURE', 'GAME OVER? NO. DRAW AGAIN.'],
-    horde: ['We are many. We all draw badly.', 'Beyond the Wall, we only draw stick figures.', 'One of us dropped the pencil. Again.', 'Bring me the pencil of a thousand sketches.'],
-  };
+  // Her maskotun kendi replikleri var (metinler i18n.js'de)
+  const MASCOT_KEYS = ['hood', 'pixel', 'horde'];
   (function decorateHome() {
     const snow = document.querySelector('.snow');
     if (snow) {
@@ -87,24 +84,20 @@
       }
     }
     // Rastgele bir maskot seç
-    const keys = Object.keys(MASCOTS);
-    const pick = keys[Math.floor(Math.random() * keys.length)];
-    for (const k of keys) $('mascot-' + k).toggleAttribute('hidden', k !== pick);
-    const BUBBLES = MASCOTS[pick];
+    const pick = MASCOT_KEYS[Math.floor(Math.random() * MASCOT_KEYS.length)];
+    for (const k of MASCOT_KEYS) $('mascot-' + k).toggleAttribute('hidden', k !== pick);
+    const bubbles = () => t('mascot.' + pick);
     let bi = 0;
-    $('walkerBubble').textContent = BUBBLES[0];
+    $('walkerBubble').textContent = bubbles()[0];
 
-    // Günün ruh hali
-    const MOODS = [
-      'Red Wedding energy', 'Season 8 ending', 'Sprint retro after a prod incident', 'Hold the door (of the meeting room)',
-      'Dracarys on the backlog', 'Winter is coming, so is the deadline', 'Shame bell before standup',
-      'Small council, big opinions', 'A Lannister always pays their tech debt', 'The North remembers the last outage',
-      'Valar Morghulis, especially Fridays', 'Bran-level staring at the roadmap',
-    ];
-    $('moodText').textContent = MOODS[Math.floor(Math.random() * MOODS.length)];
+    // Günün ruh hali (dil değişince aynı sıradaki çevirisi gösterilir)
+    const moodIndex = Math.floor(Math.random() * t('home.moods').length);
+    const showMood = () => { $('moodText').textContent = t('home.moods')[moodIndex]; };
+    showMood();
+    document.addEventListener('langchange', () => { showMood(); $('walkerBubble').textContent = bubbles()[bi]; if ($('statsLine').dataset.more) $('statsMore').textContent = t('home.counting'); });
 
     // Sayaç
-    $('statsLine').onclick = () => { const b = $('statsLine'); if (!b.dataset.more) { b.dataset.more = '1'; b.append(' ...and counting.'); } };
+    $('statsLine').onclick = () => { const b = $('statsLine'); if (!b.dataset.more) { b.dataset.more = '1'; $('statsMore').textContent = t('home.counting'); } };
 
     // Sur ve yemin
     $('towerBtn').onclick = () => { $('oath').hidden = !$('oath').hidden; };
@@ -119,10 +112,10 @@
     setInterval(() => {
       if ($('view-home').hidden) return;
       const b = $('walkerBubble');
-      bi = (bi + 1) % BUBBLES.length;
+      bi = (bi + 1) % bubbles().length;
       b.style.animation = 'none';
       void b.offsetWidth; // animasyonu yeniden tetikle
-      b.textContent = BUBBLES[bi];
+      b.textContent = bubbles()[bi];
       b.style.animation = '';
     }, 6000);
   })();
@@ -135,7 +128,7 @@
 
   function getName() {
     const name = $('nameInput').value.trim();
-    if (!name) { toast('Enter your name first 🙂'); $('nameInput').focus(); return null; }
+    if (!name) { toast(t('toast.enterName')); $('nameInput').focus(); return null; }
     localStorage.setItem('name', name);
     return name;
   }
@@ -144,7 +137,7 @@
     const name = getName();
     if (!name) return;
     socket.emit('room:create', { name, playerId }, (res) => {
-      if (res.error) return toast(res.error);
+      if (res.error) return toast(window.I18N.server(res.error));
       sessionStorage.setItem('roomCode', res.code);
       history.replaceState(null, '', `?room=${res.code}`);
     });
@@ -153,9 +146,9 @@
   function join(code) {
     const name = getName();
     if (!name) return;
-    if (!code || code.length < 4) { toast('Enter the 4-character room code'); return; }
+    if (!code || code.length < 4) { toast(t('toast.enterCode')); return; }
     socket.emit('room:join', { code, name, playerId }, (res) => {
-      if (res.error) return toast(res.error);
+      if (res.error) return toast(window.I18N.server(res.error));
       sessionStorage.setItem('roomCode', res.code);
       history.replaceState(null, '', `?room=${res.code}`);
     });
@@ -174,13 +167,13 @@
       socket.emit('room:join', { code, name, playerId }, (res) => {
         if (res.error) {
           sessionStorage.removeItem('roomCode');
-          if (state) { state = null; showView('home'); toast(res.error); }
+          if (state) { state = null; showView('home'); toast(window.I18N.server(res.error)); }
         }
       });
     }
   });
 
-  socket.on('disconnect', () => toast('Connection lost, reconnecting...', 4000));
+  socket.on('disconnect', () => toast(t('toast.lost'), 4000));
 
   // Keepalive: Render'ın ücretsiz planı 15 dk HTTP isteği gelmezse servisi uyutur ve bellekteki odalar silinir.
   // Odadayken 5 dakikada bir küçük bir istek atarak uzun oyunlarda sunucuyu uyanık tutuyoruz.
@@ -188,12 +181,12 @@
     if (!state || !sessionStorage.getItem('roomCode')) return;
     fetch('/health', { cache: 'no-store', keepalive: true }).catch(() => {});
   }, 5 * 60 * 1000);
-  socket.on('toast', (msg) => toast(msg));
+  socket.on('toast', (msg) => toast(window.I18N.server(msg)));
   socket.on('kicked', () => {
     sessionStorage.removeItem('roomCode');
     state = null;
     showView('home');
-    toast('You were removed from the room');
+    toast(t('toast.kicked'));
   });
 
   function leaveRoom() {
@@ -221,6 +214,13 @@
     if (!state) return;
     state.reveal = reveal;
     renderResults();
+  });
+
+  // Dil değişince mevcut ekranı yeniden çiz (sonuç kartları da yeniden kurulur)
+  document.addEventListener('langchange', () => {
+    if (!state) return;
+    if (state.phase === 'results') delete $('albumEntries').dataset.chain;
+    render(state.phase);
   });
 
   function render(prevPhase) {
@@ -252,10 +252,10 @@
       const name = document.createElement('span');
       name.textContent = p.name;
       li.appendChild(name);
-      if (p.id === s.hostId) { const t = document.createElement('span'); t.className = 'tag'; t.textContent = 'Host'; li.appendChild(t); }
-      else if (p.id === s.you) { const t = document.createElement('span'); t.className = 'tag you'; t.textContent = 'You'; li.appendChild(t); }
+      if (p.id === s.hostId) { const tg = document.createElement('span'); tg.className = 'tag'; tg.textContent = t('lobby.host'); li.appendChild(tg); }
+      else if (p.id === s.you) { const tg = document.createElement('span'); tg.className = 'tag you'; tg.textContent = t('lobby.you'); li.appendChild(tg); }
       else if (isHost) {
-        const k = document.createElement('button'); k.className = 'kick'; k.title = 'Remove from room'; k.textContent = '✕';
+        const k = document.createElement('button'); k.className = 'kick'; k.title = t('lobby.kick'); k.textContent = '✕';
         k.onclick = () => socket.emit('player:kick', { playerId: p.id });
         li.appendChild(k);
       }
@@ -267,9 +267,9 @@
     // Tahmini süre: turlar yazma/çizim diye sırayla gider, her tur en fazla ayarlanan süre kadar sürer
     const textRounds = Math.ceil(steps / 2), drawRounds = Math.floor(steps / 2);
     const maxSecs = textRounds * s.settings.writeTime + drawRounds * s.settings.drawTime;
-    const fmtMin = (secs) => secs < 90 ? `${secs}s` : `${Math.round(secs / 60)} min`;
+    const fmtMin = (secs) => secs < 90 ? t('lobby.secs', { s: secs }) : t('lobby.mins', { m: Math.round(secs / 60) });
     $('lobbyPlan').textContent = n >= s.minPlayers
-      ? `${n} albums · ${steps} rounds · up to ~${fmtMin(maxSecs)} of play (rounds end early when everyone has submitted)`
+      ? t('lobby.plan', { n, steps, time: fmtMin(maxSecs) })
       : '';
     $('hostPanel').hidden = !isHost;
     $('waitHost').hidden = isHost;
@@ -278,12 +278,12 @@
       if (document.activeElement !== $('drawTime')) $('drawTime').value = s.settings.drawTime;
       if (document.activeElement !== $('stepsInput')) $('stepsInput').value = s.settings.steps || 0;
       $('stepsHint').textContent = s.settings.steps > 0
-        ? `Everyone starts an album, then it passes to the next ${s.settings.steps - 1} players in the circle. With ${n} players the game lasts ${Math.min(s.settings.steps, Math.max(n, 2))} rounds.`
-        : 'Everyone gets an album and it passes through every player, so the game lasts one round per player. Set a smaller number to keep big groups short.';
+        ? t('lobby.hintSteps', { next: s.settings.steps - 1, n, rounds: Math.min(s.settings.steps, Math.max(n, 2)) })
+        : t('lobby.hintAll');
       $('startBtn').disabled = s.players.length < s.minPlayers;
       $('startBtn').textContent = s.players.length < s.minPlayers
-        ? `At least ${s.minPlayers} players needed`
-        : 'Start Game 🚀';
+        ? t('lobby.needPlayers', { n: s.minPlayers })
+        : t('lobby.start');
     }
   }
 
@@ -298,23 +298,23 @@
   // ---------- Oyun ----------
   function renderPlay(prevPhase) {
     const s = state;
-    const t = s.task;
+    const task = s.task;
     const roundKey = `${s.code}:${s.round}`;
     const newRound = roundKey !== lastRoundKey;
     lastRoundKey = roundKey;
 
-    const typeLabel = s.round === 0 ? 'Write a sentence' : t.type === 'draw' ? 'Draw' : 'Describe';
-    $('roundLabel').textContent = `Round ${s.round + 1} / ${s.totalRounds}`;
-    $('taskLabel').textContent = t.spectator ? 'Spectating' : `${typeLabel} · ${t.chainOwner}'s album`;
+    const typeLabel = s.round === 0 ? t('play.write') : task.type === 'draw' ? t('play.draw') : t('play.describe');
+    $('roundLabel').textContent = t('play.round', { r: s.round + 1, t: s.totalRounds });
+    $('taskLabel').textContent = task.spectator ? t('play.spectating') : t('play.task', { type: typeLabel, album: t('album.of', { owner: task.chainOwner }) });
 
     $('textPhase').hidden = true;
     $('drawPhase').hidden = true;
     $('waitPhase').hidden = true;
     $('spectatorPhase').hidden = true;
 
-    if (t.spectator) { $('spectatorPhase').hidden = false; startTimer(); return; }
+    if (task.spectator) { $('spectatorPhase').hidden = false; startTimer(); return; }
 
-    if (t.submitted) {
+    if (task.submitted) {
       $('waitPhase').hidden = false;
       renderWaitList($('waitPlayers'));
       stopTimer();
@@ -323,21 +323,21 @@
 
     if (newRound) { autoSubmitted = false; alarmed = false; }
 
-    // t.prev yalnızca tur başında / yeniden katılımda gelir; ara güncellemelerde mevcut istem korunur
-    const hasPrevInfo = t.prev !== undefined;
-    if (t.type === 'text') {
+    // task.prev yalnızca tur başında / yeniden katılımda gelir; ara güncellemelerde mevcut istem korunur
+    const hasPrevInfo = task.prev !== undefined;
+    if (task.type === 'text') {
       $('textPhase').hidden = false;
       if (hasPrevInfo) {
-        const hasImg = t.prev && t.prev.type === 'draw';
+        const hasImg = task.prev && task.prev.type === 'draw';
         $('textPromptWrap').hidden = !hasImg;
         $('textIntro').hidden = hasImg;
-        if (hasImg) $('textPromptImg').src = t.prev.content || blankImage();
+        if (hasImg) $('textPromptImg').src = task.prev.content || blankImage();
       }
       if (newRound) { $('textInput').value = ''; updateCount(); setTimeout(() => $('textInput').focus(), 50); }
     } else {
       $('drawPhase').hidden = false;
       if (hasPrevInfo) {
-        $('drawPromptText').textContent = (t.prev && t.prev.content) ? t.prev.content : '(left blank... draw whatever you like!)';
+        $('drawPromptText').textContent = (task.prev && task.prev.content) ? task.prev.content : t('play.blank');
       }
       if (newRound) { resetCanvas(); }
       fitCanvas();
@@ -377,11 +377,11 @@
 
   function submitText(force = false) {
     const text = $('textInput').value.trim();
-    if (!text && !force) { toast("You can't submit an empty text 🙂"); return; }
+    if (!text && !force) { toast(t('play.emptyText')); return; }
     $('textSubmit').disabled = true;
     socket.emit('round:submit', { content: text }, (res) => {
       $('textSubmit').disabled = false;
-      if (res.error) toast(res.error);
+      if (res.error) toast(window.I18N.server(res.error));
     });
   }
   $('textSubmit').onclick = () => submitText();
@@ -392,7 +392,7 @@
     const strokes = { w: canvas.width, h: canvas.height, ms: timeline(ops).ms, ops };
     socket.emit('round:submit', { content: data, strokes }, (res) => {
       $('drawSubmit').disabled = false;
-      if (res.error) toast(res.error);
+      if (res.error) toast(window.I18N.server(res.error));
     });
   }
   $('drawSubmit').onclick = submitDraw;
@@ -401,7 +401,7 @@
     if (autoSubmitted || !state || state.phase !== 'playing' || state.task.spectator || state.task.submitted) return;
     autoSubmitted = true;
     if (state.task.type === 'text') submitText(true); else submitDraw();
-    toast('Time is up, submitted ⏰');
+    toast(t('play.timeUp'));
   }
 
   // ---------- Zamanlayıcı ----------
@@ -738,9 +738,9 @@
     const chain = albums[r.chain];
     $('resultsHostNav').hidden = !isHost;
     $('resultsWait').hidden = isHost;
-    if (!chain) { $('albumTitle').textContent = 'Loading album...'; return; }
-    $('albumTitle').textContent = `${chain.owner}'s album`;
-    $('albumIndex').textContent = `Album ${r.chain + 1} / ${s.albumCount}`;
+    if (!chain) { $('albumTitle').textContent = t('results.loading'); return; }
+    $('albumTitle').textContent = t('album.of', { owner: chain.owner });
+    $('albumIndex').textContent = t('results.index', { i: r.chain + 1, n: s.albumCount });
 
     const wrap = $('albumEntries');
     const key = `${r.chain}`;
@@ -752,12 +752,12 @@
     // Eksik kartları ekle, fazla olanları kaldır
     while (wrap.children.length > r.step) wrap.lastChild.remove();
     const totalSteps = s.totalRounds || chain.steps.length;
-    const verb = (e, i) => e.type === 'text' ? (i === 0 ? 'wrote' : 'described') : 'drew';
+    const verbKey = (e, i) => e.type === 'text' ? (i === 0 ? 'results.wrote' : 'results.described') : 'results.drew';
     const content = (e) => {
       if (e.type === 'text') {
         const t = document.createElement('div');
         t.className = 'text' + (e.content ? '' : ' empty');
-        t.textContent = e.content || '(time ran out, nothing written)';
+        t.textContent = e.content || window.I18N.t('results.nothing');
         return t;
       }
       if (e.strokes && e.strokes.ops && e.strokes.ops.length) {
@@ -768,7 +768,7 @@
       }
       const img = document.createElement('img');
       img.src = e.content || blankImage();
-      img.alt = 'Drawing';
+      img.alt = window.I18N.t('results.drawingAlt');
       return img;
     };
     for (let i = wrap.children.length; i < r.step; i++) {
@@ -779,7 +779,7 @@
       const who = document.createElement('div');
       who.className = 'who';
       who.appendChild(avatar({ name: e.author, color: e.authorColor }));
-      const nm = document.createElement('span'); nm.textContent = `${e.author} ${verb(e, i)}:`; who.appendChild(nm);
+      const nm = document.createElement('span'); nm.textContent = window.I18N.t(verbKey(e, i), { name: e.author }); who.appendChild(nm);
       const st = document.createElement('span'); st.className = 'step'; st.textContent = `${i + 1}/${totalSteps}`;
       who.appendChild(st);
       card.appendChild(who);
@@ -800,13 +800,13 @@
     $('prevBtn').disabled = r.chain === 0 && r.step <= 1;
     $('nextBtn').hidden = albumDone;
     $('autoBtn').hidden = albumDone;
-    $('autoBtn').textContent = r.auto ? '⏸ Pause' : '▶ Resume';
+    $('autoBtn').textContent = r.auto ? window.I18N.t('results.pause') : window.I18N.t('results.resume');
     $('nextAlbumBtn').hidden = !(albumDone && !atEnd);
     $('restartBtn').hidden = !atEnd;
-    $('resultsStatus').textContent = r.auto ? 'Playing automatically…'
-      : atEnd ? 'All albums revealed'
-      : albumDone ? (isHost ? 'Album finished' : 'Album finished, waiting for the host to continue…')
-      : (isHost ? 'Paused' : 'Paused by the host');
+    $('resultsStatus').textContent = r.auto ? window.I18N.t('results.playing')
+      : atEnd ? window.I18N.t('results.allDone')
+      : albumDone ? window.I18N.t(isHost ? 'results.albumDone' : 'results.albumDoneWait')
+      : window.I18N.t(isHost ? 'results.paused' : 'results.pausedHost');
     // Host albümlerin sonunu beklemeden herkesi lobiye döndürebilir
     $('lobbyBtn').hidden = !isHost || atEnd;
   }
@@ -816,7 +816,7 @@
   $('nextAlbumBtn').onclick = () => socket.emit('results:nav', { dir: 'next' });
   $('autoBtn').onclick = () => { if (state && state.reveal) socket.emit('results:auto', { on: !state.reveal.auto }); };
   $('lobbyBtn').onclick = () => {
-    if (confirm('End the reveal and bring everyone back to the lobby?')) socket.emit('game:restart');
+    if (confirm(window.I18N.t('results.confirmLobby'))) socket.emit('game:restart');
   };
   $('leaveBtn2').onclick = leaveRoom;
   document.addEventListener('keydown', (e) => {
