@@ -159,11 +159,11 @@
               <input id="drawTime" type="number" min="20" max="600" step="10">
             </label>
             <label class="field inline">
-              <span>Albums <small class="muted">(0 = everyone)</small></span>
-              <input id="albumsInput" type="number" min="0" max="45" step="1">
+              <span>Steps per album <small class="muted">(0 = all players)</small></span>
+              <input id="stepsInput" type="number" min="0" max="45" step="1">
             </label>
           </div>
-          <p id="albumsHint" class="muted small"></p>
+          <p id="stepsHint" class="muted small"></p>
           <button id="startBtn" class="btn primary big">Start Game 🚀</button>
         </div>
         <p id="waitHost" class="muted" hidden>Waiting for the host to start the game...</p>
@@ -231,12 +231,6 @@
           <h2>Submitted ✅</h2>
           <p class="muted">Waiting for the others...</p>
           <ul id="waitPlayers" class="player-list compact"></ul>
-        </div>
-
-        <div id="idlePhase" class="card" hidden>
-          <h2>The opening sentences are being written ✍️</h2>
-          <p class="muted" id="idleText"></p>
-          <ul id="idlePlayers" class="player-list compact"></ul>
         </div>
 
         <div id="spectatorPhase" class="card" hidden>

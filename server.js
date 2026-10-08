@@ -108,7 +108,7 @@ function metricsSnapshot() {
   for (const r of rooms.values()) {
     byPhase[r.phase]++;
     const players = connectedPlayers(r).length;
-    if (players > 0) activeRooms.push({ code: r.code, phase: r.phase, players, total: r.players.size, round: r.round, totalRounds: r.totalRounds, albums: r.albums.length });
+    if (players > 0) activeRooms.push({ code: r.code, phase: r.phase, players, total: r.players.size, round: r.round, totalRounds: r.totalRounds, albums: r.albums.length, steps: r.totalRounds });
   }
   return {
     now: Date.now(),
@@ -129,13 +129,12 @@ function createRoom(hostId) {
     hostId,
     players: new Map(), // playerId -> { id, name, color, socketId, connected }
     phase: 'lobby',     // lobby | playing | results
-    settings: { writeTime: 60, drawTime: 90, albums: 0 }, // albums: 0 = herkesin albümü olur
+    settings: { writeTime: 60, drawTime: 90, steps: 0 }, // steps: albüm başına adım (0 = oyuncu sayısı kadar)
     colorSeq: 0,
     round: 0,
     totalRounds: 0,
     order: [],          // oyuna başlayan oyuncuların id sırası
-    albums: [],         // { ownerId, opening, lanes: [laneIndex] } — opening: sahibin açılış cümlesi
-    lanes: [],          // { album, entries: [{ type, authorId, content }] } — tur r>=1 girdisi entries[r-1]
+    albums: [],         // her oyuncuya bir albüm: { ownerId, opening, entries } — tur r>=1 girdisi entries[r-1]
     submissions: new Map(),
     roundEndsAt: 0,
     timer: null,
@@ -162,45 +161,19 @@ function roundType(round) {
   return round % 2 === 0 ? 'text' : 'draw';
 }
 
-// Tur r >= 1: oyuncu i, şerit (i - r) üzerinde çalışır; o şeridin önceki girdisi hep başka bir oyuncudandır.
-function laneIndexFor(room, playerId, round) {
+// Çember: tur r'de oyuncu i, listede kendinden r önce gelen oyuncunun albümünde çalışır.
+// Albüm sahibi j açısından adım r'yi (j + r). oyuncu yapar, yani hep "listedeki bir sonraki oyuncu".
+function albumIndexFor(room, playerId, round) {
   const i = room.order.indexOf(playerId);
   if (i < 0) return -1;
   const n = room.order.length;
   return (((i - round) % n) + n) % n;
 }
 
-function albumOwnedBy(room, playerId) {
-  return room.albums.findIndex((a) => a.ownerId === playerId);
-}
-
-// Rastgele K albüm sahibi seç; 1. turda kimse kendi açılış cümlesini çizmesin
-function assignAlbums(room, k) {
-  const n = room.order.length;
-  const laneAlbum = (lane) => lane % k;
-  let best = null;
-  for (let attempt = 0; attempt < 200; attempt++) {
-    const idx = room.order.map((_, i) => i);
-    for (let i = idx.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [idx[i], idx[j]] = [idx[j], idx[i]]; }
-    const owners = idx.slice(0, k);
-    const conflicts = owners.filter((pi, a) => laneAlbum(((pi - 1) % n + n) % n) === a).length;
-    if (best === null || conflicts < best.conflicts) best = { owners, conflicts };
-    if (conflicts === 0) break;
-  }
-  room.albums = best.owners.map((pi, a) => ({ ownerId: room.order[pi], opening: null, lanes: [] }));
-  room.lanes = room.order.map((_, lane) => ({ album: laneAlbum(lane), entries: [] }));
-  room.lanes.forEach((l, lane) => room.albums[l.album].lanes.push(lane));
-}
-
-function albumCountFor(room, n) {
-  const k = room.settings.albums > 0 ? Math.min(room.settings.albums, n) : n;
+// Albüm başına adım sayısı = tur sayısı; 0 ise herkes her albüme bir kez uğrar (oyuncu sayısı kadar)
+function stepsFor(room, n) {
+  const k = room.settings.steps > 0 ? Math.min(room.settings.steps, n) : n;
   return Math.max(MIN_PLAYERS, Math.min(k, n));
-}
-
-// Bu turda görevi olan oyuncular: 0. turda yalnızca albüm sahipleri, sonra herkes
-function activeIds(room) {
-  if (room.round === 0) return room.albums.map((a) => a.ownerId);
-  return room.order;
 }
 
 function nameOf(room, playerId) {
@@ -227,11 +200,7 @@ function serializeAlbum(room, index) {
     authorColor: room.players.get(e.authorId)?.color,
     content: e.content,
   });
-  const steps = [[entry({ type: 'text', authorId: a.ownerId, content: a.opening })]];
-  const done = Math.max(...a.lanes.map((l) => room.lanes[l].entries.length), 0);
-  for (let s = 0; s < done; s++) {
-    steps.push(a.lanes.map((l) => room.lanes[l].entries[s]).filter(Boolean).map(entry));
-  }
+  const steps = [entry({ type: 'text', authorId: a.ownerId, content: a.opening }), ...a.entries.filter(Boolean).map(entry)];
   return {
     index,
     owner: nameOf(room, a.ownerId),
@@ -262,23 +231,11 @@ function stateFor(room, playerId, { withTask = false } = {}) {
   };
 
   if (room.phase === 'playing') {
-    base.active = activeIds(room);
-    const inGame = room.order.includes(playerId);
-    if (!inGame) {
+    const ai = albumIndexFor(room, playerId, room.round);
+    if (ai < 0) {
       base.task = { spectator: true };
-    } else if (room.round === 0) {
-      const ai = albumOwnedBy(room, playerId);
-      if (ai < 0) {
-        // Açılış turu: albüm sahipleri yazarken diğerleri bekler, 2. turdan itibaren herkes oynar
-        base.task = { spectator: false, idle: true, type: 'text', submitted: false, openers: room.albums.length };
-      } else {
-        base.task = { spectator: false, type: 'text', chainOwner: nameOf(room, playerId), submitted: room.submissions.has(playerId) };
-        if (withTask) base.task.prev = null;
-      }
     } else {
-      const li = laneIndexFor(room, playerId, room.round);
-      const lane = room.lanes[li];
-      const album = room.albums[lane.album];
+      const album = room.albums[ai];
       base.task = {
         spectator: false,
         type: roundType(room.round),
@@ -287,9 +244,9 @@ function stateFor(room, playerId, { withTask = false } = {}) {
       };
       // Önceki adımın içeriği (çizim verisi büyük olabilir) yalnızca tur başında / katılımda gönderilir
       if (withTask) {
-        const prev = room.round === 1
-          ? { type: 'text', authorId: album.ownerId, content: album.opening }
-          : lane.entries[room.round - 2] || null;
+        const prev = room.round === 0 ? null
+          : room.round === 1 ? { type: 'text', authorId: album.ownerId, content: album.opening }
+          : album.entries[room.round - 2] || null;
         base.task.prev = prev
           ? { type: prev.type, author: nameOf(room, prev.authorId), content: prev.content }
           : null;
@@ -314,18 +271,18 @@ function broadcast(room, opts) {
 function startGame(room) {
   room.order = connectedPlayers(room).map((p) => p.id);
   const n = room.order.length;
-  const k = albumCountFor(room, n);
-  assignAlbums(room, k);
+  const k = stepsFor(room, n);
+  room.albums = room.order.map((id) => ({ ownerId: id, opening: null, entries: [] }));
   room.totalRounds = k; // her albümde k adım: açılış cümlesi + (k - 1) tur
   room.round = 0;
   room.phase = 'playing';
   stats.games++;
   metrics.totals.gamesStarted++;
   hourBucket().games++;
-  room.gameRecord = { code: room.code, startedAt: Date.now(), finishedAt: null, players: n, albums: k, rounds: k, durationMs: null, status: 'playing' };
+  room.gameRecord = { code: room.code, startedAt: Date.now(), finishedAt: null, players: n, steps: k, durationMs: null, status: 'playing' };
   metrics.games.push(room.gameRecord);
   if (metrics.games.length > 100) metrics.games.shift();
-  logEvent('game', `Game started in ${room.code}: ${n} players, ${k} albums`);
+  logEvent('game', `Game started in ${room.code}: ${n} players, ${k} steps per album`);
   beginRound(room);
 }
 
@@ -351,12 +308,12 @@ function finishRound(room) {
     }
   } else {
     for (const pid of room.order) {
-      const li = laneIndexFor(room, pid, room.round);
+      const ai = albumIndexFor(room, pid, room.round);
       let content = room.submissions.get(pid);
       if (content == null) content = type === 'text' ? '' : null;
       if (type === 'draw' && content) stats.drawings++;
       if (type === 'text' && content) stats.sentences++;
-      room.lanes[li].entries[room.round - 1] = { type, authorId: pid, content };
+      room.albums[ai].entries[room.round - 1] = { type, authorId: pid, content };
     }
   }
   broadcastStats();
@@ -382,7 +339,7 @@ function finishRound(room) {
 }
 
 function maybeFinishEarly(room) {
-  const waiting = activeIds(room).filter((pid) => {
+  const waiting = room.order.filter((pid) => {
     const p = room.players.get(pid);
     return p && p.connected && !room.submissions.has(pid);
   });
@@ -475,7 +432,7 @@ io.on('connection', (socket) => {
     if (!isHost(room) || room.phase !== 'lobby') return;
     room.settings.writeTime = clampInt(settings.writeTime, 15, 300, room.settings.writeTime);
     room.settings.drawTime = clampInt(settings.drawTime, 20, 600, room.settings.drawTime);
-    room.settings.albums = clampInt(settings.albums, 0, MAX_PLAYERS, room.settings.albums);
+    room.settings.steps = clampInt(settings.steps, 0, MAX_PLAYERS, room.settings.steps);
     broadcast(room);
   });
 
@@ -492,7 +449,7 @@ io.on('connection', (socket) => {
     const room = getRoom();
     if (!room || room.phase !== 'playing') return cb({ error: 'No active round' });
     const pid = socket.data.playerId;
-    if (!activeIds(room).includes(pid)) return cb({ error: 'You have no task in this round' });
+    if (!room.order.includes(pid)) return cb({ error: 'You are not in this game' });
     if (room.submissions.has(pid)) return cb({ ok: true });
     const type = roundType(room.round);
     const clean = validateContent(type, content);
@@ -533,7 +490,6 @@ io.on('connection', (socket) => {
     room.totalRounds = 0;
     room.order = [];
     room.albums = [];
-    room.lanes = [];
     room.submissions = new Map();
     room.roundEndsAt = 0;
     room.reveal = { chain: 0, step: 1 };

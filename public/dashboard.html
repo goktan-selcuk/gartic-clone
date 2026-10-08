@@ -242,13 +242,13 @@
 
   function renderRooms() {
     const wrap = $('roomsTable');
-    const rows = data.current.activeRooms.map((r) => [r.code, badge(r.phase), `${r.players} / ${r.total}`, r.phase === 'playing' ? `${r.round + 1} / ${r.totalRounds}` : (r.phase === 'results' ? `${r.albums} albums` : '–')]);
+    const rows = data.current.activeRooms.map((r) => [r.code, badge(r.phase), `${r.players} / ${r.total}`, r.phase === 'playing' ? `round ${r.round + 1} / ${r.totalRounds}` : (r.phase === 'results' ? `${r.albums} albums · ${r.steps} steps` : '–')]);
     wrap.replaceChildren(rows.length ? table(['Room', 'Phase', 'Players', 'Progress'], rows) : text('div', 'No one is in a room right now.', 'empty'));
   }
   function renderGames() {
     const wrap = $('gamesTable');
-    const rows = data.games.slice(0, 25).map((g) => [when(g.startedAt), g.code, g.players, g.albums, dur(g.durationMs ?? (g.status === 'playing' ? Date.now() - g.startedAt : null)), badge(g.status)]);
-    wrap.replaceChildren(rows.length ? table(['Started', 'Room', 'Players', 'Albums', 'Duration', 'Status'], rows) : text('div', 'No games yet.', 'empty'));
+    const rows = data.games.slice(0, 25).map((g) => [when(g.startedAt), g.code, g.players, g.steps, dur(g.durationMs ?? (g.status === 'playing' ? Date.now() - g.startedAt : null)), badge(g.status)]);
+    wrap.replaceChildren(rows.length ? table(['Started', 'Room', 'Players', 'Steps', 'Duration', 'Status'], rows) : text('div', 'No games yet.', 'empty'));
   }
   function renderLog() {
     const ul = $('log');

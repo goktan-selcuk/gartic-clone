@@ -5,10 +5,10 @@ bir sonraki çizimi tarif eder... Turlar bitince her "albüm" adım adım açıl
 gittiği görülür.
 
 - Kurulum gerektirmez: linki paylaş, herkes adını yazıp katılsın.
-- 2–45 oyuncu. Varsayılanda herkesin bir albümü olur ve tur sayısı = oyuncu sayısı.
-- Kalabalık gruplar için ev sahibi **albüm sayısını** düşürebilir (örn. 30 kişi, 8 albüm): rastgele seçilen
-  8 kişi açılış cümlesini yazar, 2. turdan itibaren herkes her tur çizer/tarif eder, oyun 8 tur sürer ve her
-  albüm adımında birden fazla çizim yan yana görünür.
+- 2–45 oyuncu. Herkesin bir albümü olur; varsayılanda albüm her oyuncudan geçer (tur sayısı = oyuncu sayısı).
+- Kalabalık gruplar için ev sahibi **albüm başına adım sayısını** düşürebilir (örn. 30 kişi, 8 adım): her albüm
+  sahibinden sonra listedeki sıradaki 7 oyuncuya çember şeklinde geçer, herkes her tur çizer/tarif eder ve oyun
+  8 tur sürer.
 - Yazma / çizim süreleri ev sahibi tarafından ayarlanır.
 - Fırça, silgi, doldurma, geri al, 16 renk. Mobilde de çalışır.
 - Sayfa yenilense bile oyuncu aynı odaya geri döner.
