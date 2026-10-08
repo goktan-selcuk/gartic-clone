@@ -1,4 +1,4 @@
-// Dil desteği: varsayılan İngilizce, seçim localStorage'da tutulur.
+// Dil desteği: varsayılan Türkçe, seçim localStorage'da tutulur.
 // Statik metinler data-i18n / data-i18n-placeholder / data-i18n-title ile, dinamikler I18N.t(key, vars) ile çevrilir.
 window.I18N = (() => {
   'use strict';
@@ -254,7 +254,7 @@ window.I18N = (() => {
     },
   };
 
-  let lang = 'en';
+  let lang = 'tr';
   try { const saved = localStorage.getItem('lang'); if (saved && dict[saved]) lang = saved; } catch {}
 
   function t(key, vars) {
