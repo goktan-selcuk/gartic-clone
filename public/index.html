@@ -248,11 +248,14 @@
         <div id="albumEntries" class="album"></div>
         <div class="card results-nav">
           <div id="resultsHostNav">
-            <button id="prevBtn" class="btn">← Previous</button>
-            <button id="nextBtn" class="btn primary big">Next →</button>
+            <button id="prevBtn" class="btn">← Step back</button>
+            <button id="autoBtn" class="btn">⏸ Pause</button>
+            <button id="nextBtn" class="btn">Step →</button>
+            <button id="nextAlbumBtn" class="btn primary big" hidden>Next album →</button>
             <button id="restartBtn" class="btn primary big" hidden>New Game 🔁</button>
           </div>
           <p id="resultsWait" class="muted" hidden>The host is revealing the albums...</p>
+          <p id="resultsStatus" class="muted small"></p>
           <div class="results-exit">
             <button id="lobbyBtn" class="btn ghost small" hidden>Back to lobby 🏠</button>
             <button id="leaveBtn2" class="btn ghost small">Leave room</button>

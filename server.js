@@ -138,7 +138,8 @@ function createRoom(hostId) {
     submissions: new Map(),
     roundEndsAt: 0,
     timer: null,
-    reveal: { chain: 0, step: 1 },
+    reveal: { chain: 0, step: 1, auto: false, stepStartedAt: 0, stepMs: 0, replayMs: 0 },
+    revealTimer: null,
     emptySince: Date.now(),
   };
   rooms.set(room.code, room);
@@ -199,6 +200,7 @@ function serializeAlbum(room, index) {
     author: nameOf(room, e.authorId),
     authorColor: room.players.get(e.authorId)?.color,
     content: e.content,
+    strokes: e.strokes || null, // çizimin fırça hareketleri (sonuçta yeniden oynatılır)
   });
   const steps = [entry({ type: 'text', authorId: a.ownerId, content: a.opening }), ...a.entries.filter(Boolean).map(entry)];
   return {
@@ -212,6 +214,49 @@ function serializeAlbum(room, index) {
 function sendAlbum(room, target) {
   const album = serializeAlbum(room, room.reveal.chain);
   if (album) target.emit('results:album', album);
+}
+
+// ---------- Sonuç sunumu: adımlar sunucu zamanlamasıyla kendiliğinden açılır ----------
+const REVEAL_TEXT_MS = 4000;       // bir cümlenin ekranda kalma süresi
+const REVEAL_DRAW_PAUSE_MS = 2500; // çizim bittikten sonra bekleme
+function revealEntry(room) {
+  const a = room.albums[room.reveal.chain];
+  if (!a) return null;
+  const i = room.reveal.step - 1;
+  return i === 0 ? { type: 'text' } : a.entries[i - 1] || null;
+}
+function replayMsFor(e) {
+  if (!e || e.type !== 'draw' || !e.strokes) return 0;
+  return Math.max(1500, Math.min(12000, e.strokes.ms || 3000));
+}
+function setRevealStep(room, chain, step, auto) {
+  const r = room.reveal;
+  r.chain = chain; r.step = step; r.auto = auto;
+  const e = revealEntry(room);
+  r.replayMs = replayMsFor(e);
+  r.stepMs = e && e.type === 'draw' ? (r.replayMs || 3000) + REVEAL_DRAW_PAUSE_MS : REVEAL_TEXT_MS;
+  r.stepStartedAt = Date.now();
+}
+function emitReveal(room) {
+  io.to(room.code).emit('results:reveal', room.reveal);
+}
+function scheduleReveal(room) {
+  clearTimeout(room.revealTimer);
+  room.revealTimer = null;
+  const r = room.reveal;
+  if (room.phase !== 'results' || !r.auto) return;
+  room.revealTimer = setTimeout(() => {
+    if (room.phase !== 'results' || !r.auto) return;
+    if (r.step < room.totalRounds) {
+      setRevealStep(room, r.chain, r.step + 1, true);
+      emitReveal(room);
+      scheduleReveal(room);
+    } else {
+      // Albüm bitti: ev sahibi bir sonraki albüme geçene kadar bekle
+      r.auto = false;
+      emitReveal(room);
+    }
+  }, r.stepMs);
 }
 
 function stateFor(room, playerId, { withTask = false } = {}) {
@@ -303,17 +348,18 @@ function finishRound(room) {
   const type = roundType(room.round);
   if (room.round === 0) {
     for (const a of room.albums) {
-      a.opening = room.submissions.get(a.ownerId) || '';
+      a.opening = room.submissions.get(a.ownerId)?.content || '';
       if (a.opening) stats.sentences++;
     }
   } else {
     for (const pid of room.order) {
       const ai = albumIndexFor(room, pid, room.round);
-      let content = room.submissions.get(pid);
+      const sub = room.submissions.get(pid);
+      let content = sub ? sub.content : null;
       if (content == null) content = type === 'text' ? '' : null;
       if (type === 'draw' && content) stats.drawings++;
       if (type === 'text' && content) stats.sentences++;
-      room.albums[ai].entries[room.round - 1] = { type, authorId: pid, content };
+      room.albums[ai].entries[room.round - 1] = { type, authorId: pid, content, strokes: sub?.strokes || null };
     }
   }
   broadcastStats();
@@ -330,9 +376,10 @@ function finishRound(room) {
     }
     room.roundEndsAt = 0;
     room.submissions = new Map();
-    room.reveal = { chain: 0, step: 1 };
+    setRevealStep(room, 0, 1, true);
     broadcast(room);
     sendAlbum(room, io.to(room.code));
+    scheduleReveal(room);
   } else {
     beginRound(room);
   }
@@ -355,6 +402,16 @@ function transferHostIfNeeded(room) {
 
 function touchEmpty(room) {
   room.emptySince = connectedPlayers(room).length === 0 ? Date.now() : null;
+}
+
+// Fırça hareketleri: istemcinin ürettiği JSON, boyut ve biçim kontrolüyle saklanır
+function validateStrokes(strokes) {
+  if (!strokes || typeof strokes !== 'object' || !Array.isArray(strokes.ops)) return null;
+  if (strokes.ops.length > 5000) return null;
+  let json;
+  try { json = JSON.stringify(strokes); } catch { return null; }
+  if (json.length > 1.5e6) return null;
+  return { w: 800, h: 600, ms: Math.max(0, Math.min(60000, +strokes.ms || 0)), ops: strokes.ops };
 }
 
 function validateContent(type, content) {
@@ -445,7 +502,7 @@ io.on('connection', (socket) => {
     startGame(room);
   });
 
-  socket.on('round:submit', ({ content } = {}, cb = () => {}) => {
+  socket.on('round:submit', ({ content, strokes } = {}, cb = () => {}) => {
     const room = getRoom();
     if (!room || room.phase !== 'playing') return cb({ error: 'No active round' });
     const pid = socket.data.playerId;
@@ -454,7 +511,7 @@ io.on('connection', (socket) => {
     const type = roundType(room.round);
     const clean = validateContent(type, content);
     if (type === 'draw' && clean == null) return cb({ error: 'Could not read the drawing' });
-    room.submissions.set(pid, clean);
+    room.submissions.set(pid, { content: clean, strokes: type === 'draw' ? validateStrokes(strokes) : null });
     metrics.totals.submissions++;
     cb({ ok: true });
     broadcast(room);
@@ -467,15 +524,29 @@ io.on('connection', (socket) => {
     const r = room.reveal;
     const before = r.chain;
     const len = room.totalRounds;
+    let chain = r.chain, step = r.step, auto = r.auto;
     if (dir === 'next') {
-      if (r.step < len) r.step++;
-      else if (r.chain < room.albums.length - 1) { r.chain++; r.step = 1; }
+      if (step < len) step++;
+      else if (chain < room.albums.length - 1) { chain++; step = 1; auto = true; } // yeni albüm: sunum yeniden başlar
     } else if (dir === 'prev') {
-      if (r.step > 1) r.step--;
-      else if (r.chain > 0) { r.chain--; r.step = len; }
+      if (step > 1) step--;
+      else if (chain > 0) { chain--; step = len; auto = false; }
     }
-    if (r.chain !== before) sendAlbum(room, io.to(room.code));
-    io.to(room.code).emit('results:reveal', r);
+    setRevealStep(room, chain, step, auto);
+    if (chain !== before) sendAlbum(room, io.to(room.code));
+    emitReveal(room);
+    scheduleReveal(room);
+  });
+
+  // Ev sahibi sunumu duraklatır / sürdürür
+  socket.on('results:auto', ({ on } = {}) => {
+    const room = getRoom();
+    if (!isHost(room) || room.phase !== 'results') return;
+    const r = room.reveal;
+    if (on && r.step >= room.totalRounds) return; // albüm bitti: "Next album" ile ilerlenir
+    setRevealStep(room, r.chain, r.step, !!on);
+    emitReveal(room);
+    scheduleReveal(room);
   });
 
   socket.on('game:restart', () => {
@@ -483,6 +554,8 @@ io.on('connection', (socket) => {
     if (!isHost(room) || room.phase === 'playing') return;
     clearTimeout(room.timer);
     room.timer = null;
+    clearTimeout(room.revealTimer);
+    room.revealTimer = null;
     // Ayrılanları temizle
     for (const [id, p] of room.players) if (!p.connected) room.players.delete(id);
     room.phase = 'lobby';
@@ -492,7 +565,7 @@ io.on('connection', (socket) => {
     room.albums = [];
     room.submissions = new Map();
     room.roundEndsAt = 0;
-    room.reveal = { chain: 0, step: 1 };
+    room.reveal = { chain: 0, step: 1, auto: false, stepStartedAt: 0, stepMs: 0, replayMs: 0 };
     transferHostIfNeeded(room);
     broadcast(room);
   });
@@ -535,6 +608,7 @@ setInterval(() => {
   for (const [code, room] of rooms) {
     if (room.emptySince && now - room.emptySince > ROOM_IDLE_MS) {
       clearTimeout(room.timer);
+      clearTimeout(room.revealTimer);
       if (room.gameRecord) { room.gameRecord.status = 'abandoned'; metrics.totals.gamesAbandoned++; }
       logEvent('room', `Room ${code} removed (idle)`);
       rooms.delete(code);

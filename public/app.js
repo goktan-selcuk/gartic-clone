@@ -389,7 +389,8 @@
   function submitDraw() {
     $('drawSubmit').disabled = true;
     const data = canvas.toDataURL('image/png');
-    socket.emit('round:submit', { content: data }, (res) => {
+    const strokes = { w: canvas.width, h: canvas.height, ms: timeline(ops).ms, ops };
+    socket.emit('round:submit', { content: data, strokes }, (res) => {
       $('drawSubmit').disabled = false;
       if (res.error) toast(res.error);
     });
@@ -499,6 +500,11 @@
   let drawing = false;
   let last = null;
   const undoStack = [];
+  // Fırça hareketleri kaydı: sonuç ekranında çizim, çizenin hareketleriyle yeniden oynatılır
+  let ops = [];          // { t:'d', tool:'b'|'e', c, s, ts, d, p:[x,y,...] } | { t:'f', c, x, y, ts } | { t:'c', ts }
+  let drawStart = 0;
+  let curOp = null;
+  function recTime() { if (!drawStart) drawStart = performance.now(); return Math.round(performance.now() - drawStart); }
 
   const pal = $('palette');
   for (const c of PALETTE) {
@@ -537,9 +543,9 @@
   }
   $('undoBtn').onclick = () => {
     const img = undoStack.pop();
-    if (img) ctx.putImageData(img, 0, 0);
+    if (img) { ctx.putImageData(img, 0, 0); ops.pop(); } // her snapshot bir op'a karşılık gelir
   };
-  $('clearBtn').onclick = () => { snapshot(); fillWhite(); };
+  $('clearBtn').onclick = () => { snapshot(); fillWhite(); ops.push({ t: 'c', ts: recTime() }); };
 
   function fillWhite() {
     ctx.fillStyle = '#ffffff';
@@ -547,6 +553,7 @@
   }
   function resetCanvas() {
     undoStack.length = 0;
+    ops = []; drawStart = 0; curOp = null;
     fillWhite();
     setTool('brush');
   }
@@ -571,6 +578,12 @@
     ctx.lineTo(p.x, p.y);
     ctx.stroke();
     last = p;
+    if (curOp) {
+      const n = curOp.p.length;
+      const dx = p.x - curOp.p[n - 2], dy = p.y - curOp.p[n - 1];
+      if (dx * dx + dy * dy >= 2.25) curOp.p.push(Math.round(p.x), Math.round(p.y)); // 1.5px'ten yakın noktaları atla
+      curOp.d = recTime() - curOp.ts;
+    }
   }
 
   canvas.addEventListener('pointerdown', (e) => {
@@ -579,9 +592,15 @@
     canvas.setPointerCapture(e.pointerId);
     const p = pos(e);
     snapshot();
-    if (tool === 'fill') { floodFill(Math.floor(p.x), Math.floor(p.y), color); return; }
+    if (tool === 'fill') {
+      ops.push({ t: 'f', c: color, x: Math.floor(p.x), y: Math.floor(p.y), ts: recTime() });
+      floodFill(Math.floor(p.x), Math.floor(p.y), color);
+      return;
+    }
     drawing = true;
     last = p;
+    curOp = { t: 'd', tool: tool === 'eraser' ? 'e' : 'b', c: color, s: size, ts: recTime(), d: 0, p: [Math.round(p.x), Math.round(p.y)] };
+    ops.push(curOp);
     // Tek tık = nokta
     ctx.fillStyle = tool === 'eraser' ? '#ffffff' : color;
     ctx.beginPath();
@@ -594,7 +613,12 @@
     const events = e.getCoalescedEvents ? e.getCoalescedEvents() : [e];
     for (const ev of events) strokeTo(pos(ev));
   });
-  const stop = (e) => { if (!drawing) return; drawing = false; last = null; try { canvas.releasePointerCapture(e.pointerId); } catch {} };
+  const stop = (e) => {
+    if (!drawing) return;
+    drawing = false; last = null;
+    if (curOp) { curOp.d = recTime() - curOp.ts; curOp = null; }
+    try { canvas.releasePointerCapture(e.pointerId); } catch {}
+  };
   canvas.addEventListener('pointerup', stop);
   canvas.addEventListener('pointercancel', stop);
   canvas.addEventListener('pointerleave', (e) => { if (drawing && e.pointerType === 'mouse' && !canvas.hasPointerCapture(e.pointerId)) stop(e); });
@@ -604,8 +628,8 @@
     return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
   }
 
-  function floodFill(sx, sy, hex) {
-    const w = canvas.width, h = canvas.height;
+  function floodFill(sx, sy, hex) { floodFillOn(ctx, canvas.width, canvas.height, sx, sy, hex); }
+  function floodFillOn(ctx, w, h, sx, sy, hex) {
     if (sx < 0 || sy < 0 || sx >= w || sy >= h) return;
     const img = ctx.getImageData(0, 0, w, h);
     const d = img.data;
@@ -643,6 +667,69 @@
     if (e.key === 'f') setTool('fill');
   });
 
+  // ---------- Yeniden oynatım ----------
+  // Sanal zaman çizelgesi: uzun duraksamalar 250 ms'ye, tek bir fırça darbesi 2.5 sn'ye kısaltılır
+  function timeline(ops) {
+    let v = 0, prevEnd = 0;
+    const items = [];
+    for (const op of ops) {
+      const gap = Math.min(250, Math.max(0, (op.ts || 0) - prevEnd));
+      const dur = op.t === 'd' ? Math.max(60, Math.min(2500, op.d || 0)) : 150;
+      const vs = v + gap, ve = vs + dur;
+      items.push({ op, vs, ve });
+      v = ve; prevEnd = (op.ts || 0) + (op.t === 'd' ? (op.d || 0) : 0);
+    }
+    return { items, ms: v };
+  }
+
+  // strokes'u durationMs içinde, sunucu saatine göre startedAt anından başlayarak canvas'a çizer.
+  // Geç katılan biri için geçen süre büyük olur ve çizim anında tamamlanır.
+  function startReplay(cv, strokes, durationMs, startedAt) {
+    const c = cv.getContext('2d', { willReadFrequently: true });
+    c.fillStyle = '#ffffff'; c.fillRect(0, 0, cv.width, cv.height);
+    const { items, ms } = timeline(strokes.ops || []);
+    const scale = ms > 0 ? Math.max(0.01, durationMs) / ms : 1;
+    const token = String(Math.random());
+    cv.dataset.replay = token;
+    let i = 0, pi = 0;
+    const applyPoints = (op, upto) => {
+      const w = op.tool === 'e' ? op.s * 2 : op.s, col = op.tool === 'e' ? '#ffffff' : op.c;
+      const n = op.p.length / 2;
+      upto = Math.min(upto, n);
+      if (pi === 0 && upto > 0) {
+        c.fillStyle = col; c.beginPath(); c.arc(op.p[0], op.p[1], w / 2, 0, Math.PI * 2); c.fill();
+        pi = 1;
+      }
+      if (upto > pi) {
+        c.lineCap = 'round'; c.lineJoin = 'round'; c.lineWidth = w; c.strokeStyle = col;
+        c.beginPath(); c.moveTo(op.p[(pi - 1) * 2], op.p[(pi - 1) * 2 + 1]);
+        for (let k = pi; k < upto; k++) c.lineTo(op.p[k * 2], op.p[k * 2 + 1]);
+        c.stroke();
+        pi = upto;
+      }
+    };
+    const applyOp = (op) => {
+      if (op.t === 'd') applyPoints(op, op.p.length / 2);
+      else if (op.t === 'f') floodFillOn(c, cv.width, cv.height, op.x, op.y, op.c);
+      else if (op.t === 'c') { c.fillStyle = '#ffffff'; c.fillRect(0, 0, cv.width, cv.height); }
+    };
+    const frame = () => {
+      if (cv.dataset.replay !== token) return;
+      const v = (Date.now() + serverOffset - startedAt) / scale;
+      while (i < items.length) {
+        const it = items[i];
+        if (it.ve <= v) { applyOp(it.op); i++; pi = 0; continue; }
+        if (it.vs < v && it.op.t === 'd') {
+          const n = it.op.p.length / 2;
+          applyPoints(it.op, Math.max(1, Math.floor(((v - it.vs) / (it.ve - it.vs)) * n)));
+        }
+        break;
+      }
+      if (i < items.length) requestAnimationFrame(frame);
+    };
+    frame();
+  }
+
   // ---------- Sonuçlar ----------
   function renderResults() {
     const s = state;
@@ -669,6 +756,12 @@
         t.textContent = e.content || '(time ran out, nothing written)';
         return t;
       }
+      if (e.strokes && e.strokes.ops && e.strokes.ops.length) {
+        const cv = document.createElement('canvas');
+        cv.width = e.strokes.w || 800; cv.height = e.strokes.h || 600;
+        cv.className = 'replay';
+        return cv;
+      }
       const img = document.createElement('img');
       img.src = e.content || blankImage();
       img.alt = 'Drawing';
@@ -686,21 +779,37 @@
       const st = document.createElement('span'); st.className = 'step'; st.textContent = `${i + 1}/${totalSteps}`;
       who.appendChild(st);
       card.appendChild(who);
-      card.appendChild(content(e));
+      const body = content(e);
+      card.appendChild(body);
+      if (body.tagName === 'CANVAS') {
+        // Sadece şu an açılan adım canlı oynatılır; önceki adımlar anında tamamlanmış gösterilir
+        const live = i === r.step - 1 && r.replayMs > 0;
+        startReplay(body, e.strokes, live ? r.replayMs : 1, live ? r.stepStartedAt : 0);
+      }
       wrap.appendChild(card);
       card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
 
-    const atEnd = r.chain === s.albumCount - 1 && r.step >= totalSteps;
+    const albumDone = r.step >= totalSteps;
+    const atEnd = r.chain === s.albumCount - 1 && albumDone;
     $('prevBtn').disabled = r.chain === 0 && r.step <= 1;
-    $('nextBtn').hidden = atEnd;
+    $('nextBtn').hidden = albumDone;
+    $('autoBtn').hidden = albumDone;
+    $('autoBtn').textContent = r.auto ? '⏸ Pause' : '▶ Resume';
+    $('nextAlbumBtn').hidden = !(albumDone && !atEnd);
     $('restartBtn').hidden = !atEnd;
+    $('resultsStatus').textContent = r.auto ? 'Playing automatically…'
+      : atEnd ? 'All albums revealed'
+      : albumDone ? (isHost ? 'Album finished' : 'Album finished, waiting for the host to continue…')
+      : (isHost ? 'Paused' : 'Paused by the host');
     // Host albümlerin sonunu beklemeden herkesi lobiye döndürebilir
     $('lobbyBtn').hidden = !isHost || atEnd;
   }
   $('nextBtn').onclick = () => socket.emit('results:nav', { dir: 'next' });
   $('prevBtn').onclick = () => socket.emit('results:nav', { dir: 'prev' });
   $('restartBtn').onclick = () => socket.emit('game:restart');
+  $('nextAlbumBtn').onclick = () => socket.emit('results:nav', { dir: 'next' });
+  $('autoBtn').onclick = () => { if (state && state.reveal) socket.emit('results:auto', { on: !state.reveal.auto }); };
   $('lobbyBtn').onclick = () => {
     if (confirm('End the reveal and bring everyone back to the lobby?')) socket.emit('game:restart');
   };

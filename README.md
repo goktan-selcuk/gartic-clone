@@ -10,6 +10,8 @@ gittiği görülür.
   sahibinden sonra listedeki sıradaki 7 oyuncuya çember şeklinde geçer, herkes her tur çizer/tarif eder ve oyun
   8 tur sürer.
 - Yazma / çizim süreleri ev sahibi tarafından ayarlanır.
+- Sonuç ekranı sunum gibi kendiliğinden akar: cümleler birkaç saniye durur, çizimler çizenin fırça
+  hareketleriyle yeniden canlandırılır. Ev sahibi duraklatabilir, adım atlayabilir, albüm bitince sıradakine geçer.
 - Fırça, silgi, doldurma, geri al, 16 renk. Mobilde de çalışır.
 - Sayfa yenilense bile oyuncu aynı odaya geri döner.
 - Her şey bellekte tutulur; sunucu yeniden başlarsa odalar silinir (geçici kullanım için tasarlandı).
