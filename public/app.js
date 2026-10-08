@@ -264,7 +264,13 @@
     $('playerCount').textContent = `(${s.players.length})`;
     const n = s.players.length;
     const steps = Math.max(s.minPlayers, Math.min(s.settings.steps > 0 ? s.settings.steps : n, Math.max(n, s.minPlayers)));
-    $('lobbyPlan').textContent = n >= s.minPlayers ? `${n} albums · ${steps} rounds` : '';
+    // Tahmini süre: turlar yazma/çizim diye sırayla gider, her tur en fazla ayarlanan süre kadar sürer
+    const textRounds = Math.ceil(steps / 2), drawRounds = Math.floor(steps / 2);
+    const maxSecs = textRounds * s.settings.writeTime + drawRounds * s.settings.drawTime;
+    const fmtMin = (secs) => secs < 90 ? `${secs}s` : `${Math.round(secs / 60)} min`;
+    $('lobbyPlan').textContent = n >= s.minPlayers
+      ? `${n} albums · ${steps} rounds · up to ~${fmtMin(maxSecs)} of play (rounds end early when everyone has submitted)`
+      : '';
     $('hostPanel').hidden = !isHost;
     $('waitHost').hidden = isHost;
     if (isHost) {
