@@ -744,7 +744,11 @@
 
     const wrap = $('albumEntries');
     const key = `${r.chain}`;
-    if (wrap.dataset.chain !== key) { wrap.innerHTML = ''; wrap.dataset.chain = key; }
+    if (wrap.dataset.chain !== key) {
+      wrap.innerHTML = ''; wrap.dataset.chain = key;
+      // Yeni albüm: başlığa dön
+      requestAnimationFrame(() => $('albumTitle').scrollIntoView({ behavior: 'smooth', block: 'start' }));
+    }
     // Eksik kartları ekle, fazla olanları kaldır
     while (wrap.children.length > r.step) wrap.lastChild.remove();
     const totalSteps = s.totalRounds || chain.steps.length;
@@ -787,7 +791,8 @@
         startReplay(body, e.strokes, live ? r.replayMs : 1, live ? r.stepStartedAt : 0);
       }
       wrap.appendChild(card);
-      card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      // Yeni adım yerleştikten sonra ekranı kaydır: kartın tamamı (çizim dahil) görünsün
+      requestAnimationFrame(() => card.scrollIntoView({ behavior: 'smooth', block: 'end' }));
     }
 
     const albumDone = r.step >= totalSteps;
