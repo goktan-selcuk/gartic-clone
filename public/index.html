@@ -259,6 +259,12 @@
             <button id="nextBtn" class="btn" data-i18n="results.step">Step →</button>
             <button id="nextAlbumBtn" class="btn primary big" hidden data-i18n="results.nextAlbum">Next album →</button>
             <button id="restartBtn" class="btn primary big" hidden data-i18n="results.newGame">New Game 🔁</button>
+            <div class="speed-switch" id="speedSwitch" role="group" aria-label="Playback speed">
+              <span class="muted small" data-i18n="results.speed">Speed</span>
+              <button type="button" data-speed="1">1x</button>
+              <button type="button" data-speed="2">2x</button>
+              <button type="button" data-speed="4">4x</button>
+            </div>
           </div>
           <p id="resultsWait" class="muted" hidden data-i18n="results.hostRevealing">The host is revealing the albums...</p>
           <p id="resultsStatus" class="muted small"></p>

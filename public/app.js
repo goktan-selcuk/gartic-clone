@@ -803,7 +803,8 @@
     $('autoBtn').textContent = r.auto ? window.I18N.t('results.pause') : window.I18N.t('results.resume');
     $('nextAlbumBtn').hidden = !(albumDone && !atEnd);
     $('restartBtn').hidden = !atEnd;
-    $('resultsStatus').textContent = r.auto ? window.I18N.t('results.playing')
+    for (const b of document.querySelectorAll('#speedSwitch [data-speed]')) b.classList.toggle('active', Number(b.dataset.speed) === (r.speed || 1));
+    $('resultsStatus').textContent = r.auto ? window.I18N.t('results.playing', { speed: r.speed || 1 })
       : atEnd ? window.I18N.t('results.allDone')
       : albumDone ? window.I18N.t(isHost ? 'results.albumDone' : 'results.albumDoneWait')
       : window.I18N.t(isHost ? 'results.paused' : 'results.pausedHost');
@@ -815,6 +816,7 @@
   $('restartBtn').onclick = () => socket.emit('game:restart');
   $('nextAlbumBtn').onclick = () => socket.emit('results:nav', { dir: 'next' });
   $('autoBtn').onclick = () => { if (state && state.reveal) socket.emit('results:auto', { on: !state.reveal.auto }); };
+  for (const b of document.querySelectorAll('#speedSwitch [data-speed]')) b.onclick = () => socket.emit('results:speed', { speed: Number(b.dataset.speed) });
   $('lobbyBtn').onclick = () => {
     if (confirm(window.I18N.t('results.confirmLobby'))) socket.emit('game:restart');
   };

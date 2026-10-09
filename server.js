@@ -138,7 +138,7 @@ function createRoom(hostId) {
     submissions: new Map(),
     roundEndsAt: 0,
     timer: null,
-    reveal: { chain: 0, step: 1, auto: false, stepStartedAt: 0, stepMs: 0, replayMs: 0 },
+    reveal: { chain: 0, step: 1, auto: false, stepStartedAt: 0, stepMs: 0, replayMs: 0, speed: 1 },
     revealTimer: null,
     emptySince: Date.now(),
   };
@@ -234,12 +234,15 @@ function replayMsFor(e) {
   if (!e || e.type !== 'draw' || !e.strokes) return 0;
   return Math.max(1000, Math.min(6000, (e.strokes.ms || 3000) * REPLAY_SPEED));
 }
+const REVEAL_SPEEDS = [1, 2, 4]; // ev sahibinin seçebildiği oynatma hızları
 function setRevealStep(room, chain, step, auto) {
   const r = room.reveal;
   r.chain = chain; r.step = step; r.auto = auto;
   const e = revealEntry(room);
-  r.replayMs = replayMsFor(e);
-  r.stepMs = e && e.type === 'draw' ? (r.replayMs || 3000) + REVEAL_DRAW_PAUSE_MS : textMsFor(e && e.content);
+  const speed = r.speed || 1;
+  r.replayMs = Math.round(replayMsFor(e) / speed);
+  const base = e && e.type === 'draw' ? (r.replayMs || Math.round(3000 / speed)) + REVEAL_DRAW_PAUSE_MS / speed : textMsFor(e && e.content) / speed;
+  r.stepMs = Math.max(400, Math.round(base));
   r.stepStartedAt = Date.now();
 }
 function emitReveal(room) {
@@ -543,6 +546,18 @@ io.on('connection', (socket) => {
     scheduleReveal(room);
   });
 
+  // Ev sahibi oynatma hızını seçer (1x / 2x / 4x); mevcut adım yeni hızla baştan zamanlanır
+  socket.on('results:speed', ({ speed } = {}) => {
+    const room = getRoom();
+    if (!isHost(room) || room.phase !== 'results') return;
+    const sp = Number(speed);
+    if (!REVEAL_SPEEDS.includes(sp) || room.reveal.speed === sp) return;
+    room.reveal.speed = sp;
+    setRevealStep(room, room.reveal.chain, room.reveal.step, room.reveal.auto);
+    emitReveal(room);
+    scheduleReveal(room);
+  });
+
   // Ev sahibi sunumu duraklatır / sürdürür
   socket.on('results:auto', ({ on } = {}) => {
     const room = getRoom();
@@ -570,7 +585,7 @@ io.on('connection', (socket) => {
     room.albums = [];
     room.submissions = new Map();
     room.roundEndsAt = 0;
-    room.reveal = { chain: 0, step: 1, auto: false, stepStartedAt: 0, stepMs: 0, replayMs: 0 };
+    room.reveal = { chain: 0, step: 1, auto: false, stepStartedAt: 0, stepMs: 0, replayMs: 0, speed: room.reveal.speed || 1 };
     transferHostIfNeeded(room);
     broadcast(room);
   });

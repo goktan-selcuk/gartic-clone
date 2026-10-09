@@ -154,6 +154,9 @@ textarea { width: 100%; resize: vertical; font-size: 1.05rem; }
 .results-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
 .results-nav { display: flex; flex-direction: column; align-items: center; gap: 10px; }
 .results-exit { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
+.speed-switch { display: inline-flex; align-items: center; gap: 4px; margin-left: 6px; }
+.speed-switch button { border: 1px solid var(--border); background: var(--card); color: var(--muted); border-radius: 999px; font: inherit; font-size: .8rem; font-weight: 700; padding: 5px 10px; cursor: pointer; }
+.speed-switch button.active { background: var(--primary); border-color: var(--primary); color: #fff; }
 #resultsHostNav { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
 
 .toast {
